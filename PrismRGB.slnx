@@ -1,0 +1,12 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/PrismRGB.App/PrismRGB.App.csproj" />
+    <Project Path="src/PrismRGB.Core/PrismRGB.Core.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/PrismRGB.Tests/PrismRGB.Tests.csproj" />
+  </Folder>
+  <Folder Name="/tools/">
+    <Project Path="tools/UiSnapshot/UiSnapshot.csproj" />
+  </Folder>
+</Solution>

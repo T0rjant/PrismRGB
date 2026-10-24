@@ -1,0 +1,14 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- Outil de développement : rend la fenêtre hors écran (mode démo) et enregistre des captures PNG. -->
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <AvaloniaUseCompiledBindingsByDefault>true</AvaloniaUseCompiledBindingsByDefault>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="Avalonia.Headless" Version="11.3.22" />
+    <PackageReference Include="Avalonia.Skia" Version="11.3.22" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\PrismRGB.App\PrismRGB.App.csproj" />
+  </ItemGroup>
+</Project>

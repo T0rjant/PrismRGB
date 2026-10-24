@@ -1,0 +1,29 @@
+PrismRGB - démarrage rapide (Windows 10/11)
+============================================
+
+1. Installer OpenRGB (sert uniquement de pilote, on n'utilise pas son interface)
+   - https://openrgb.org/releases.html  ->  version "Windows 64-bit" (zip)
+   - Dézipper le contenu dans un sous-dossier "OpenRGB" à côté de PrismRGB.exe :
+        PrismRGB\PrismRGB.exe
+        PrismRGB\OpenRGB\OpenRGB.exe
+     (sinon, indiquer le chemin dans Paramètres > Emplacement d'OpenRGB.exe)
+
+2. Fermer les autres logiciels RGB (MSI Center / Mystic Light, iCUE, SignalRGB,
+   Armoury Crate, l'interface d'OpenRGB...). Deux logiciels sur le même matériel
+   = couleurs qui sautent. PrismRGB les détecte dans Paramètres.
+
+3. Lancer PrismRGB.exe (Windows demande les droits administrateur : c'est normal,
+   la RAM et certains contrôleurs de la carte mère l'exigent).
+   La première détection du matériel prend 10 à 30 secondes.
+
+4. Onglet Appareils : pour chaque header ARGB de la carte mère (JRAINBOW...),
+   mettre le nombre exact de LEDs branchées puis "Appliquer".
+
+5. Onglet Effets : choisir un profil ou un effet, régler couleurs / vitesse / sens.
+
+En cas de souci : Paramètres > "Créer le rapport de diagnostic".
+Le fichier PrismRGB-diagnostic.txt arrive sur le bureau : c'est lui qu'il faut
+renvoyer pour corriger un problème ou ajouter un pilote natif.
+
+Options de lancement : --minimized (démarre dans la zone de notification),
+                       --demo (appareils simulés, rien n'est envoyé au matériel).
