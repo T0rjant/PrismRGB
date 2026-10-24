@@ -4,9 +4,10 @@ using Avalonia.Media;
 using Avalonia.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using PrismRGB.App.Controls;
 using PrismRGB.Core.Config;
 using PrismRGB.Core.Devices;
-using PrismRGB.Core.OpenRgb;
+using PrismRGB.Core.Effects;
 using PrismRGB.Core.Platform;
 
 namespace PrismRGB.App.ViewModels;
@@ -16,7 +17,7 @@ public sealed partial class MainViewModel : ObservableObject
     private readonly AppHost _host;
     private readonly DispatcherTimer _statusTimer;
     private bool _loading;
-    private int _conflictTick;
+    private int _tick;
 
     public MainViewModel(AppHost host)
     {
@@ -27,15 +28,13 @@ public sealed partial class MainViewModel : ObservableObject
 
         _loading = true;
         var cfg = host.Config;
-        _openRgbPath = cfg.OpenRgb.ExePath ?? OpenRgbLocator.Find(null) ?? "";
-        _autoLaunch = cfg.OpenRgb.AutoLaunch;
-        _serverHost = cfg.OpenRgb.Host;
-        _port = cfg.OpenRgb.Port;
-        _stopServerOnExit = cfg.OpenRgb.StopServerOnExit;
         _targetFps = cfg.TargetFps;
         _minimizeToTray = cfg.MinimizeToTray;
         _startMinimized = cfg.StartMinimized;
         _demoMode = cfg.DemoMode;
+        _allowUntestedBoards = cfg.AllowUntestedBoards;
+        _masterBrightness = cfg.MasterBrightness;
+        _lightsOn = cfg.LightsOn;
         _startWithWindows = Autostart.IsEnabled();
         _loading = false;
 
@@ -55,43 +54,80 @@ public sealed partial class MainViewModel : ObservableObject
     public ObservableCollection<DeviceViewModel> Devices { get; } = [];
     public ObservableCollection<EditTarget> Targets { get; } = [];
     public ObservableCollection<ConflictItem> Conflicts { get; } = [];
+    public ObservableCollection<ScanEntryViewModel> ScanEntries { get; } = [];
 
+    public IReadOnlyList<NavItem> Nav { get; } =
+    [
+        new("Éclairage", Icons.Lighting),
+        new("Appareils", Icons.Devices),
+        new("Matériel", Icons.Scan),
+        new("Réglages", Icons.Settings),
+    ];
+
+    [ObservableProperty] private int _selectedPage;
     [ObservableProperty] private ProfileItem? _selectedProfile;
     [ObservableProperty] private EditTarget? _selectedTarget;
-    [ObservableProperty] private int _selectedTab;
     [ObservableProperty] private string _statusText = "Démarrage...";
     [ObservableProperty] private IBrush _statusBrush = Brushes.Gray;
-    [ObservableProperty] private string _backendName = "";
     [ObservableProperty] private string _fpsText = "";
     [ObservableProperty] private string _message = "";
     [ObservableProperty] private bool _syncAcrossDevices;
+    [ObservableProperty] private bool _isRenaming;
+    [ObservableProperty] private string _renameText = "";
+    [ObservableProperty] private bool _scanning;
+    [ObservableProperty] private string _scanReport = "";
 
-    // Paramètres
-    [ObservableProperty] private string _openRgbPath;
-    [ObservableProperty] private bool _autoLaunch;
-    [ObservableProperty] private string _serverHost;
-    [ObservableProperty] private decimal? _port;
-    [ObservableProperty] private bool _stopServerOnExit;
+    // Barre du haut
+    [ObservableProperty] private int _masterBrightness;
+    [ObservableProperty] private bool _lightsOn;
+
+    // Réglages
     [ObservableProperty] private int _targetFps;
     [ObservableProperty] private bool _minimizeToTray;
     [ObservableProperty] private bool _startMinimized;
     [ObservableProperty] private bool _demoMode;
+    [ObservableProperty] private bool _allowUntestedBoards;
     [ObservableProperty] private bool _startWithWindows;
 
+    public bool IsLightingPage => SelectedPage == 0;
+    public bool IsDevicesPage => SelectedPage == 1;
+    public bool IsHardwarePage => SelectedPage == 2;
+    public bool IsSettingsPage => SelectedPage == 3;
     public bool IsGlobalTarget => SelectedTarget?.ZoneKey is null;
+    public bool HasOverrides => Targets.Count > 1;
     public bool HasNoDevices => Devices.Count == 0;
     public bool HasConflicts => Conflicts.Count > 0;
     public bool AutostartSupported => Autostart.IsSupported;
     public string ConfigPath => _host.Store.FilePath;
     public string Version => $"v{typeof(MainViewModel).Assembly.GetName().Version?.ToString(3)}";
+    public string SelectedEffectName => Editor.SelectedEffect.Name;
+    public string SelectedEffectDescription => Editor.SelectedEffect.Description;
+    public string DeviceSummary
+    {
+        get
+        {
+            int n = Devices.Count, leds = Devices.Sum(d => d.Device.LedCount);
+            return n == 0 ? "Aucun appareil piloté" : $"{n} appareil{(n > 1 ? "s" : "")} · {leds} LEDs";
+        }
+    }
 
     private Profile Profile => _host.Config.GetActiveProfile();
+
+    partial void OnSelectedPageChanged(int value)
+    {
+        OnPropertyChanged(nameof(IsLightingPage));
+        OnPropertyChanged(nameof(IsDevicesPage));
+        OnPropertyChanged(nameof(IsHardwarePage));
+        OnPropertyChanged(nameof(IsSettingsPage));
+        if (value == 2 && ScanEntries.Count == 0) _ = ScanHardware();
+    }
 
     // ---------- Profils ----------
 
     partial void OnSelectedProfileChanged(ProfileItem? value)
     {
         if (value is null) return;
+        IsRenaming = false;
         _host.Config.ActiveProfile = value.Profile.Name;
         _loading = true;
         SyncAcrossDevices = value.Profile.SyncAcrossDevices;
@@ -108,10 +144,20 @@ public sealed partial class MainViewModel : ObservableObject
         _host.ProfileChanged();
     }
 
-    public void RenameSelectedProfile(string name)
+    [RelayCommand]
+    private void StartRename()
     {
         if (SelectedProfile is null) return;
-        name = name.Trim();
+        RenameText = SelectedProfile.Name;
+        IsRenaming = true;
+    }
+
+    [RelayCommand]
+    private void CommitRename()
+    {
+        IsRenaming = false;
+        if (SelectedProfile is null) return;
+        var name = RenameText.Trim();
         if (name.Length == 0 || Profiles.Any(p => p != SelectedProfile && p.Name == name)) return;
         SelectedProfile.Name = name;
         _host.Config.ActiveProfile = name;
@@ -126,11 +172,7 @@ public sealed partial class MainViewModel : ObservableObject
     }
 
     [RelayCommand]
-    private void NewProfile()
-    {
-        var p = new Profile { Name = UniqueName("Nouveau profil") };
-        AddProfile(p);
-    }
+    private void NewProfile() => AddProfile(new Profile { Name = UniqueName("Nouveau profil") });
 
     [RelayCommand]
     private void DuplicateProfile()
@@ -173,11 +215,12 @@ public sealed partial class MainViewModel : ObservableObject
     private void RebuildTargets(string? select)
     {
         Targets.Clear();
-        Targets.Add(new EditTarget("Tous les appareils (effet du profil)", null));
+        Targets.Add(new EditTarget("Tout le PC", null));
         foreach (var d in Devices)
             foreach (var z in d.Zones.Where(z => z.HasOverride))
-                Targets.Add(new EditTarget($"{d.Name}  ›  {z.Name}", z.Key));
+                Targets.Add(new EditTarget($"{z.Name}  ({d.Name})", z.Key));
         SelectedTarget = Targets.FirstOrDefault(t => t.ZoneKey == select) ?? Targets[0];
+        OnPropertyChanged(nameof(HasOverrides));
     }
 
     partial void OnSelectedTargetChanged(EditTarget? value)
@@ -188,11 +231,16 @@ public sealed partial class MainViewModel : ObservableObject
             ? o
             : Profile.Global;
         Editor.Load(settings);
+        EffectThumb.Shared = settings;
+        OnPropertyChanged(nameof(SelectedEffectName));
+        OnPropertyChanged(nameof(SelectedEffectDescription));
     }
 
     private void EffectEdited()
     {
         _host.ProfileChanged();
+        OnPropertyChanged(nameof(SelectedEffectName));
+        OnPropertyChanged(nameof(SelectedEffectDescription));
         foreach (var d in Devices)
             foreach (var z in d.Zones) z.RefreshOverride();
     }
@@ -213,15 +261,29 @@ public sealed partial class MainViewModel : ObservableObject
                     string key = ZoneKeys.Zone(d.Key, z.Index, z.Name);
                     int? size;
                     lock (_host.Config.ZoneSizes) size = _host.Config.ZoneSizes.TryGetValue(key, out var s) ? s : null;
-                    return new ZoneViewModel(this, d, z, profile.GetZone(key), size);
+                    if (!_host.Config.ZoneLooks.TryGetValue(key, out var look)) look = new ZoneLook();
+                    return new ZoneViewModel(this, d, z, profile.GetZone(key), size ?? z.LedCount, look);
                 }).ToList();
                 Devices.Add(new DeviceViewModel(d, zones));
             }
         }
         RefreshPositions();
         OnPropertyChanged(nameof(HasNoDevices));
+        OnPropertyChanged(nameof(DeviceSummary));
         _host.ProfileChanged();
         RebuildTargets(SelectedTarget?.ZoneKey);
+    }
+
+    public ZoneLook? LookFor(string key) => _host.Config.ZoneLooks.GetValueOrDefault(key);
+
+    /// <summary>Levé quand l'apparence d'une zone change (l'aperçu doit se redessiner).</summary>
+    public event EventHandler? LooksChanged;
+
+    internal void LookEdited(string key, ZoneLook look)
+    {
+        _host.Config.ZoneLooks[key] = look;
+        _host.SaveSoon();
+        LooksChanged?.Invoke(this, EventArgs.Empty);
     }
 
     private List<ZoneViewModel> OrderedZones() =>
@@ -233,7 +295,7 @@ public sealed partial class MainViewModel : ObservableObject
         for (int i = 0; i < all.Count; i++)
         {
             all[i].SetOrder(i);
-            all[i].Position = $"n°{i + 1}";
+            all[i].Position = $"{i + 1}";
         }
     }
 
@@ -258,7 +320,7 @@ public sealed partial class MainViewModel : ObservableObject
         zone.RefreshOverride();
         _host.ProfileChanged();
         RebuildTargets(zone.Key);
-        SelectedTab = 0;
+        SelectedPage = 0;
     }
 
     internal void ClearZoneOverride(ZoneViewModel zone)
@@ -275,8 +337,12 @@ public sealed partial class MainViewModel : ObservableObject
         _host.SetZoneSize(zone.Key, size);
         if (_host.Backend is { } b)
         {
-            try { await b.ResizeZoneAsync(zone.Device, zone.Zone.Index, size); }
-            catch (Exception ex) { Message = $"Redimensionnement impossible : {ex.Message}"; }
+            try
+            {
+                await b.ResizeZoneAsync(zone.Device, zone.Zone.Index, size);
+                Message = $"{zone.Name} : {size} LEDs.";
+            }
+            catch (Exception ex) { Message = $"Réglage impossible : {ex.Message}"; }
         }
     }
 
@@ -287,27 +353,46 @@ public sealed partial class MainViewModel : ObservableObject
             foreach (var z in d.Zones) z.Enabled = true;
     }
 
+    // ---------- Barre du haut ----------
+
+    partial void OnMasterBrightnessChanged(int value)
+    {
+        if (_loading) return;
+        _host.Config.MasterBrightness = value;
+        _host.Engine.MasterBrightness = value / 100.0;
+        _host.SaveSoon();
+    }
+
+    partial void OnLightsOnChanged(bool value)
+    {
+        if (_loading) return;
+        _host.Config.LightsOn = value;
+        _host.Engine.LightsOn = value;
+        _host.Engine.Resend();
+        _host.SaveSoon();
+    }
+
     // ---------- État / maintenance ----------
 
     private void Tick()
     {
-        FpsText = $"{_host.Engine.MeasuredFps:0} images/s";
-        if (++_conflictTick % 15 == 0) RefreshConflicts();
+        FpsText = $"{_host.Engine.MeasuredFps:0} img/s";
+        if (++_tick % 15 == 0) RefreshConflicts();
     }
 
     private void RefreshStatus()
     {
         var b = _host.Backend;
         if (b is null) return;
-        BackendName = b.Name;
         StatusText = b.StatusText;
-        StatusBrush = b.State switch
+        StatusBrush = new SolidColorBrush(Color.Parse(b.State switch
         {
-            BackendState.Connected => new SolidColorBrush(Color.Parse("#3DDC84")),
-            BackendState.Error => new SolidColorBrush(Color.Parse("#FF5468")),
-            BackendState.Stopped => Brushes.Gray,
-            _ => new SolidColorBrush(Color.Parse("#FFB020")),
-        };
+            BackendState.Connected when b.Devices.Count > 0 => "#2FD27A",
+            BackendState.Error => "#FF5468",
+            BackendState.Stopped => "#6B7180",
+            _ => "#FFB020",
+        }));
+        OnPropertyChanged(nameof(DeviceSummary));
     }
 
     [RelayCommand]
@@ -318,7 +403,7 @@ public sealed partial class MainViewModel : ObservableObject
             try { await b.ReapplyAsync(); } catch (Exception ex) { Message = ex.Message; }
         }
         _host.Engine.Resend();
-        Message = "Mode direct réappliqué sur tous les appareils.";
+        Message = "Contrôleurs reconfigurés et couleurs renvoyées.";
     }
 
     [RelayCommand]
@@ -326,22 +411,8 @@ public sealed partial class MainViewModel : ObservableObject
     {
         if (_host.Backend is { } b)
         {
-            try { await b.RescanAsync(); Message = "Liste du matériel relue."; }
-            catch (Exception ex) { Message = $"Rescan impossible : {ex.Message}"; }
-        }
-    }
-
-    [RelayCommand]
-    private async Task RestartServer()
-    {
-        if (_host.Backend is OpenRgbBackend o)
-        {
-            o.RestartServer();
-            Message = "Serveur OpenRGB relancé (détection en cours).";
-        }
-        else
-        {
-            await _host.StartBackendAsync();
+            await b.RescanAsync();
+            Message = "Nouvelle détection du matériel lancée.";
         }
     }
 
@@ -364,62 +435,42 @@ public sealed partial class MainViewModel : ObservableObject
     }
 
     [RelayCommand]
-    private void Diagnostic()
+    private async Task ScanHardware()
+    {
+        if (Scanning) return;
+        Scanning = true;
+        try
+        {
+            var (entries, report) = await Task.Run(_host.ScanHardware);
+            ScanEntries.Clear();
+            foreach (var e in entries) ScanEntries.Add(new ScanEntryViewModel(e));
+            ScanReport = report;
+        }
+        catch (Exception ex) { Message = $"Analyse impossible : {ex.Message}"; }
+        finally { Scanning = false; }
+    }
+
+    [RelayCommand]
+    private void SaveReport()
     {
         try
         {
-            var report = Diagnostics.BuildReport(_host.Backend is { } b ? [b] : [], _host.Store.FilePath)
-                + Environment.NewLine + "--- Journal ---" + Environment.NewLine + _host.LogText();
-            var path = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.DesktopDirectory), "PrismRGB-diagnostic.txt");
-            File.WriteAllText(path, report);
+            if (string.IsNullOrEmpty(ScanReport)) ScanReport = _host.ScanHardware().report;
+            var path = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.DesktopDirectory), "PrismRGB-rapport.txt");
+            File.WriteAllText(path, ScanReport);
             Shell.Open(path);
-            Message = $"Rapport enregistré : {path}";
+            Message = $"Rapport enregistré sur le bureau : {Path.GetFileName(path)}";
         }
-        catch (Exception ex) { Message = $"Diagnostic impossible : {ex.Message}"; }
+        catch (Exception ex) { Message = $"Enregistrement impossible : {ex.Message}"; }
     }
 
     [RelayCommand]
     private void OpenConfigFolder() => Shell.Open(_host.Store.Directory);
 
     [RelayCommand]
-    private void OpenOpenRgbSite() => Shell.Open("https://openrgb.org/releases.html");
+    private void DismissMessage() => Message = "";
 
-    // ---------- Paramètres ----------
-
-    partial void OnOpenRgbPathChanged(string value)
-    {
-        if (_loading) return;
-        _host.Config.OpenRgb.ExePath = string.IsNullOrWhiteSpace(value) ? null : value.Trim().Trim('"');
-        _host.SaveSoon();
-    }
-
-    partial void OnAutoLaunchChanged(bool value)
-    {
-        if (_loading) return;
-        _host.Config.OpenRgb.AutoLaunch = value;
-        _host.SaveSoon();
-    }
-
-    partial void OnServerHostChanged(string value)
-    {
-        if (_loading) return;
-        _host.Config.OpenRgb.Host = value.Trim();
-        _host.SaveSoon();
-    }
-
-    partial void OnPortChanged(decimal? value)
-    {
-        if (_loading || value is null) return;
-        _host.Config.OpenRgb.Port = (int)value;
-        _host.SaveSoon();
-    }
-
-    partial void OnStopServerOnExitChanged(bool value)
-    {
-        if (_loading) return;
-        _host.Config.OpenRgb.StopServerOnExit = value;
-        _host.SaveSoon();
-    }
+    // ---------- Réglages ----------
 
     partial void OnTargetFpsChanged(int value)
     {
@@ -451,21 +502,22 @@ public sealed partial class MainViewModel : ObservableObject
         _ = _host.StartBackendAsync();
     }
 
+    partial void OnAllowUntestedBoardsChanged(bool value)
+    {
+        if (_loading) return;
+        _host.Config.AllowUntestedBoards = value;
+        _host.SaveSoon();
+        _ = _host.Backend?.RescanAsync();
+    }
+
     partial void OnStartWithWindowsChanged(bool value)
     {
         if (_loading) return;
         var exe = Environment.ProcessPath ?? "";
-        bool ok = value ? Autostart.Enable(exe, out var output) : Autostart.Disable(out output);
+        bool ok = value ? Autostart.Enable(exe, out var err) : Autostart.Disable(out err);
         Message = ok
-            ? (value ? "PrismRGB démarrera avec Windows (droits admin, sans invite)." : "Démarrage automatique désactivé.")
-            : $"Échec : {output.Trim()}";
-    }
-
-    [RelayCommand]
-    private async Task ApplyConnection()
-    {
-        await _host.StartBackendAsync();
-        Message = "Connexion relancée avec les nouveaux paramètres.";
+            ? (value ? "PrismRGB démarrera avec Windows." : "Démarrage automatique désactivé.")
+            : $"Échec : {err}";
     }
 
     public void Start() => _statusTimer.Start();

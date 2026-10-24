@@ -1,56 +1,73 @@
+using System.Diagnostics;
 using Avalonia.Controls;
 using Avalonia.Input;
-using Avalonia.Interactivity;
-using Avalonia.Platform.Storage;
 using Avalonia.Threading;
+using PrismRGB.App.Controls;
 using PrismRGB.App.ViewModels;
 
 namespace PrismRGB.App.Views;
 
 public partial class MainWindow : Window
 {
-    private readonly DispatcherTimer _previewTimer;
+    private readonly DispatcherTimer _frameTimer;
+    private readonly Stopwatch _clock = Stopwatch.StartNew();
+    private double _last;
 
     public MainWindow()
     {
         InitializeComponent();
 
-        // Aperçu : rafraîchi à ~30 img/s, seulement quand la fenêtre est visible.
-        _previewTimer = new DispatcherTimer(TimeSpan.FromMilliseconds(33), DispatcherPriority.Render, (_, _) =>
-        {
-            if (DataContext is MainViewModel vm && IsVisible && WindowState != WindowState.Minimized)
-                Preview.Frames = vm.Host.Engine.GetPreview();
-        });
+        // Aperçus et miniatures : ~30 img/s, uniquement quand la fenêtre est visible.
+        _frameTimer = new DispatcherTimer(TimeSpan.FromMilliseconds(33), DispatcherPriority.Render, (_, _) => OnFrame());
+        _frameTimer.Start();
 
-        ProfileNameBox.LostFocus += (_, _) => CommitProfileName();
-        ProfileNameBox.KeyDown += (_, e) =>
+        TitleBar.PointerPressed += (_, e) =>
         {
-            if (e.Key == Key.Enter) CommitProfileName();
+            if (e.GetCurrentPoint(this).Properties.IsLeftButtonPressed && e.Source is Border or Grid or StackPanel or TextBlock or Image)
+                BeginMoveDrag(e);
+        };
+
+        // Changer d'effet ne doit pas faire défiler la page (la vitrine reste visible).
+        Tiles.AddHandler(RequestBringIntoViewEvent, (_, e) => e.Handled = true);
+
+        RenameBox.KeyDown += (_, e) =>
+        {
+            if (e.Key == Key.Enter && DataContext is MainViewModel vm) vm.CommitRenameCommand.Execute(null);
         };
     }
 
-    private void CommitProfileName()
+    protected override void OnDataContextChanged(EventArgs e)
     {
-        if (DataContext is MainViewModel vm && ProfileNameBox.Text is { } t) vm.RenameSelectedProfile(t);
-    }
-
-    private async void BrowseOpenRgb(object? sender, RoutedEventArgs e)
-    {
-        var files = await StorageProvider.OpenFilePickerAsync(new FilePickerOpenOptions
+        base.OnDataContextChanged(e);
+        if (DataContext is MainViewModel vm)
         {
-            Title = "Choisir OpenRGB.exe",
-            AllowMultiple = false,
-            FileTypeFilter = [new FilePickerFileType("OpenRGB") { Patterns = ["OpenRGB.exe", "*.exe"] }],
-        });
-        if (files.Count > 0 && DataContext is MainViewModel vm)
-        {
-            var path = files[0].TryGetLocalPath();
-            if (path is not null) vm.OpenRgbPath = path;
+            Rig.LookFor = vm.LookFor;
+            RigDevices.LookFor = vm.LookFor;
+            vm.LooksChanged += (_, _) =>
+            {
+                Rig.Refresh();
+                RigDevices.Refresh();
+            };
         }
     }
 
-    private void DismissMessage(object? sender, RoutedEventArgs e)
+    /// <summary>Une image d'aperçu (public pour l'outil de captures).</summary>
+    public void OnFrame()
     {
-        if (DataContext is MainViewModel vm) vm.Message = "";
+        if (!IsVisible || WindowState == WindowState.Minimized || DataContext is not MainViewModel vm) return;
+        double now = _clock.Elapsed.TotalSeconds;
+        double dt = Math.Clamp(now - _last, 0, 0.1);
+        _last = now;
+
+        var frames = vm.Host.Engine.GetPreview();
+        if (vm.IsLightingPage)
+        {
+            Rig.Frames = frames;
+            EffectThumb.TickAll(dt);
+        }
+        else if (vm.IsDevicesPage)
+        {
+            RigDevices.Frames = frames;
+        }
     }
 }

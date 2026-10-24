@@ -1,60 +1,60 @@
-using System.Diagnostics;
+using Microsoft.Win32;
 
 namespace PrismRGB.Core.Platform;
 
 /// <summary>
-/// Démarrage avec Windows via le Planificateur de tâches, avec les droits administrateur
-/// (nécessaires à OpenRGB pour la RAM et certains contrôleurs SMBus) et sans invite UAC.
+/// Démarrage avec Windows via la clé "Run" de l'utilisateur (pas de droits administrateur nécessaires :
+/// les contrôleurs USB HID sont accessibles en session normale).
 /// </summary>
 public static class Autostart
 {
-    private const string TaskName = "PrismRGB";
+    private const string RunKey = @"Software\Microsoft\Windows\CurrentVersion\Run";
+    private const string ValueName = "PrismRGB";
 
     public static bool IsSupported => OperatingSystem.IsWindows();
 
     public static bool IsEnabled()
     {
-        if (!IsSupported) return false;
-        return RunSchtasks(["/Query", "/TN", TaskName], out _) == 0;
-    }
-
-    public static bool Enable(string exePath, out string output)
-    {
-        output = "";
-        if (!IsSupported) return false;
-        // /TR attend une seule chaîne : chemin entre guillemets + arguments.
-        string tr = $"\"{exePath}\" --minimized";
-        return RunSchtasks(["/Create", "/F", "/TN", TaskName, "/SC", "ONLOGON", "/RL", "HIGHEST", "/TR", tr], out output) == 0;
-    }
-
-    public static bool Disable(out string output)
-    {
-        output = "";
-        if (!IsSupported) return false;
-        return RunSchtasks(["/Delete", "/F", "/TN", TaskName], out output) == 0;
-    }
-
-    private static int RunSchtasks(string[] args, out string output)
-    {
+        if (!OperatingSystem.IsWindows()) return false;
         try
         {
-            var psi = new ProcessStartInfo("schtasks.exe")
-            {
-                UseShellExecute = false,
-                CreateNoWindow = true,
-                RedirectStandardOutput = true,
-                RedirectStandardError = true,
-            };
-            foreach (var a in args) psi.ArgumentList.Add(a);
-            using var p = Process.Start(psi)!;
-            output = p.StandardOutput.ReadToEnd() + p.StandardError.ReadToEnd();
-            p.WaitForExit(10_000);
-            return p.ExitCode;
+            using var k = Registry.CurrentUser.OpenSubKey(RunKey);
+            return k?.GetValue(ValueName) is string;
+        }
+        catch { return false; }
+    }
+
+    public static bool Enable(string exePath, out string error)
+    {
+        error = "";
+        if (!OperatingSystem.IsWindows()) return false;
+        try
+        {
+            using var k = Registry.CurrentUser.CreateSubKey(RunKey);
+            k.SetValue(ValueName, $"\"{exePath}\" --minimized");
+            return true;
         }
         catch (Exception ex)
         {
-            output = ex.Message;
-            return -1;
+            error = ex.Message;
+            return false;
+        }
+    }
+
+    public static bool Disable(out string error)
+    {
+        error = "";
+        if (!OperatingSystem.IsWindows()) return false;
+        try
+        {
+            using var k = Registry.CurrentUser.OpenSubKey(RunKey, writable: true);
+            k?.DeleteValue(ValueName, throwOnMissingValue: false);
+            return true;
+        }
+        catch (Exception ex)
+        {
+            error = ex.Message;
+            return false;
         }
     }
 }

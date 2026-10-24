@@ -39,10 +39,22 @@ public sealed class LightingEngine : IDisposable
         set => _fps = Math.Clamp(value, 5, 120);
     }
 
+    /// <summary>Luminosité générale 0..1.</summary>
+    public double MasterBrightness { get; set; } = 1;
+
+    /// <summary>false = tout éteint (noir envoyé à tous les appareils).</summary>
+    public bool LightsOn { get; set; } = true;
+
     /// <summary>Renvoi périodique de l'image même si rien ne change : corrige les appareils qui se réinitialisent seuls.</summary>
     public TimeSpan KeepAlive { get; set; } = TimeSpan.FromSeconds(1.5);
 
     public double MeasuredFps { get; private set; }
+
+    /// <summary>
+    /// Levé quand la boucle a été suspendue plusieurs secondes (sortie de veille) :
+    /// les contrôleurs ont souvent perdu leur mode direct et doivent être reconfigurés.
+    /// </summary>
+    public event EventHandler? ResumeDetected;
 
     public void Start() => _thread.Start();
 
@@ -74,8 +86,13 @@ public sealed class LightingEngine : IDisposable
         while (!_stop.IsSet)
         {
             double now = sw.Elapsed.TotalSeconds;
-            double dt = Math.Clamp(now - last, 0, 0.1);
+            double gap = now - last;
+            double dt = Math.Clamp(gap, 0, 0.1);
             last = now;
+            if (gap > 4 && now > 5)
+            {
+                try { ResumeDetected?.Invoke(this, EventArgs.Empty); } catch { }
+            }
             try { RenderFrame(now, dt); }
             catch (Exception ex) { Debug.WriteLine($"Engine frame error: {ex}"); }
 
@@ -148,6 +165,11 @@ public sealed class LightingEngine : IDisposable
         }
 
         foreach (var k in _effects.Keys.Where(k => !used.Contains(k)).ToList()) _effects.Remove(k);
+
+        double master = LightsOn ? Math.Clamp(MasterBrightness, 0, 1) : 0;
+        if (master < 1)
+            foreach (var buf in _buffers.Values)
+                for (int i = 0; i < buf.Length; i++) buf[i] = buf[i].Scale(master);
 
         // Envoi : seulement si l'image a changé, ou périodiquement pour le maintien.
         bool force = _forceSend;

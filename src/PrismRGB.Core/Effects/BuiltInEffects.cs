@@ -107,25 +107,32 @@ public sealed class ColorWaveEffect : Effect
     }
 }
 
-/// <summary>Météorite : une tête lumineuse et une traînée qui s'estompe (scintillante en mode net).</summary>
+/// <summary>
+/// Météorite : une tête lumineuse et une traînée qui s'estompe (scintillante en mode net).
+/// Sur une longue chaîne (tout le PC synchronisé), plusieurs météorites se suivent à intervalle régulier.
+/// </summary>
 public sealed class MeteorEffect : Effect
 {
     private RgbF[] _trail = [];
-    private double _pos = -1;
-    private int _color;
+    private double _pos;
 
     protected override void OnResize(int length)
     {
         _trail = new RgbF[length];
-        _pos = -1;
+        _pos = 0;
     }
 
     protected override void RenderLogical(Span<Rgb> leds, in EffectContext ctx)
     {
         int n = leds.Length;
-        double speed = (8 + n * 0.6) * ctx.SpeedFactor;           // LEDs par seconde
-        double decay = 1.5 + (1 - ctx.Size01) * 10;               // estompage par seconde
-        double head = Math.Max(1, 1 + ctx.Size01 * n / 10.0);     // longueur de la tête
+        double speed = (8 + Math.Min(n, 60) * 0.6) * ctx.SpeedFactor;        // LEDs par seconde
+        double decay = 1.5 + (1 - ctx.Size01) * 10;                           // estompage par seconde
+        double head = Math.Max(1, 1 + ctx.Size01 * Math.Min(n, 60) / 10.0);  // longueur de la tête
+        double tail = speed * 3 / decay;                                      // longueur visible de la traînée
+        int heads = Math.Max(1, (int)(n / Math.Max(45.0, tail * 1.6)));
+        double spacing = Math.Max(n / (double)heads, head + 2);
+        double period = n + tail * 0.5;                                       // une météorite seule repart après sa traînée
+        if (heads > 1) period = spacing;
 
         for (int i = 0; i < n; i++)
         {
@@ -134,21 +141,21 @@ public sealed class MeteorEffect : Effect
         }
 
         _pos += speed * ctx.Delta;
-        var c = ctx.Color(_color);
-        for (int i = (int)Math.Floor(_pos - head); i <= (int)Math.Ceiling(_pos); i++)
-        {
-            if (i < 0 || i >= n) continue;
-            // Antialiasing de la pointe pour un mouvement fluide même lent.
-            double cover = Math.Clamp(_pos - i + 1, 0, 1) * Math.Clamp(i - (_pos - head) + 1, 0, 1);
-            _trail[i].AddMax(c, (float)cover);
-        }
+        int cycle = (int)Math.Floor(_pos / period);
+        double phase = _pos - cycle * period;
 
-        // Relance une fois la traînée sortie de la bande.
-        double tailLen = speed * 3 / decay;
-        if (_pos - head > n + tailLen * 0.5 || _pos - head > n * 2.5)
+        for (int k = 0; k <= heads; k++)
         {
-            _pos = -1;
-            _color++;
+            double p = phase + (k - 1) * period;   // une tête de plus pour couvrir l'entrée en douceur
+            if (p - head > n || p < -1) continue;
+            var c = ctx.Color(cycle - k + 1 + heads * 1000);
+            for (int i = (int)Math.Floor(p - head); i <= (int)Math.Ceiling(p); i++)
+            {
+                if (i < 0 || i >= n) continue;
+                // Antialiasing de la pointe pour un mouvement fluide même lent.
+                double cover = Math.Clamp(p - i + 1, 0, 1) * Math.Clamp(i - (p - head) + 1, 0, 1);
+                _trail[i].AddMax(c, (float)cover);
+            }
         }
 
         for (int i = 0; i < n; i++) leds[i] = _trail[i].ToRgb();

@@ -7,7 +7,7 @@ using PrismRGB.Core.Effects;
 
 namespace PrismRGB.App.ViewModels;
 
-public sealed record DirectionChoice(EffectDirection Value, string Label);
+public sealed record DirectionChoice(EffectDirection Value, string Label, string Symbol);
 
 public sealed record PalettePreset(string Name, Rgb[] Colors)
 {
@@ -66,10 +66,10 @@ public sealed partial class EffectEditorViewModel : ObservableObject
 
     public IReadOnlyList<DirectionChoice> Directions { get; } =
     [
-        new(EffectDirection.Right, "Vers la droite"),
-        new(EffectDirection.Left, "Vers la gauche"),
-        new(EffectDirection.CenterOut, "Du centre vers les bords"),
-        new(EffectDirection.EdgesIn, "Des bords vers le centre"),
+        new(EffectDirection.Right, "Vers la droite", "→"),
+        new(EffectDirection.Left, "Vers la gauche", "←"),
+        new(EffectDirection.CenterOut, "Du centre vers les bords", "←  →"),
+        new(EffectDirection.EdgesIn, "Des bords vers le centre", "→  ←"),
     ];
 
     public IReadOnlyList<PalettePreset> Palettes { get; } =

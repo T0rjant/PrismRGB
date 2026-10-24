@@ -18,6 +18,8 @@ public sealed class RgbZone
     public required int LedCount { get; init; }
     public int MinLeds { get; init; }
     public int MaxLeds { get; init; }
+    /// <summary>Donnée libre du pilote (identifiant interne de la zone).</summary>
+    public int Tag { get; init; }
 
     /// <summary>Zone dont le nombre de LEDs est réglable (typiquement un header ARGB de carte mère).</summary>
     public bool IsResizable => MaxLeds > MinLeds;
@@ -27,7 +29,7 @@ public sealed class RgbDevice
 {
     /// <summary>Identifiant stable entre deux sessions (utilisé dans les profils).</summary>
     public required string Key { get; init; }
-    /// <summary>Index propre au backend (index OpenRGB par exemple).</summary>
+    /// <summary>Index propre au backend.</summary>
     public required int BackendIndex { get; init; }
     public required string Name { get; init; }
     public string Vendor { get; init; } = "";

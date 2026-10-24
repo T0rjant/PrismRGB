@@ -7,391 +7,526 @@
         x:DataType="vm:MainViewModel"
         Title="PrismRGB"
         Icon="/Assets/icon.ico"
-        Width="1240" Height="820" MinWidth="960" MinHeight="620"
+        Width="1400" Height="900" MinWidth="1120" MinHeight="680"
         WindowStartupLocation="CenterScreen"
-        Background="{StaticResource BgBrush}">
+        Background="{StaticResource BgBrush}"
+        ExtendClientAreaToDecorationsHint="True"
+        ExtendClientAreaChromeHints="PreferSystemChrome"
+        ExtendClientAreaTitleBarHeightHint="56">
 
-  <Grid ColumnDefinitions="260,*">
+  <Grid RowDefinitions="56,*" ColumnDefinitions="92,*">
 
-    <!-- ===================== Barre latérale ===================== -->
-    <Border Background="{StaticResource PanelBrush}" BorderBrush="{StaticResource CardBorderBrush}" BorderThickness="0,0,1,0">
-      <DockPanel Margin="18">
-        <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Spacing="12" Margin="2,4,0,6">
-          <Image Source="/Assets/logo.png" Width="36" Height="36" />
-          <StackPanel VerticalAlignment="Center">
-            <TextBlock Text="PrismRGB" FontSize="21" FontWeight="Bold" />
-            <TextBlock Text="{Binding Version}" Classes="muted" FontSize="11" />
-          </StackPanel>
+    <!-- ===================== Barre du haut ===================== -->
+    <Border Grid.ColumnSpan="2" x:Name="TitleBar" Background="{StaticResource RailBrush}"
+            BorderBrush="{StaticResource LineBrush}" BorderThickness="0,0,0,1">
+      <Grid ColumnDefinitions="Auto,Auto,*,Auto,Auto,150" Margin="20,0,0,0">
+        <StackPanel Orientation="Horizontal" Spacing="11" VerticalAlignment="Center">
+          <Image Source="/Assets/logo.png" Width="28" Height="28" />
+          <TextBlock Text="PrismRGB" FontSize="17" FontWeight="Bold" VerticalAlignment="Center" />
         </StackPanel>
-        <Border DockPanel.Dock="Top" Height="3" CornerRadius="2" Margin="0,10,0,22" Background="{StaticResource AccentGradient}" />
 
-        <!-- État de la connexion -->
-        <Border DockPanel.Dock="Bottom" Classes="card" Padding="14" Margin="0,12,0,0">
-          <StackPanel Spacing="6">
-            <StackPanel Orientation="Horizontal" Spacing="8">
-              <Ellipse Width="10" Height="10" Fill="{Binding StatusBrush}" VerticalAlignment="Center" />
-              <TextBlock Text="{Binding BackendName}" FontWeight="SemiBold" />
-              <TextBlock Text="{Binding FpsText}" Classes="muted" FontSize="11" VerticalAlignment="Center" />
-            </StackPanel>
-            <TextBlock Text="{Binding StatusText}" Classes="muted" />
-            <Button Content="Réappliquer" Command="{Binding ReapplyCommand}" HorizontalAlignment="Stretch"
-                    HorizontalContentAlignment="Center" Classes="small" Margin="0,4,0,0"
-                    ToolTip.Tip="Remet tous les appareils en mode contrôle logiciel et renvoie les couleurs" />
+        <Border Grid.Column="1" Margin="28,0,0,0" Padding="12,6" CornerRadius="14" Background="#151821"
+                BorderBrush="{StaticResource LineBrush}" BorderThickness="1" VerticalAlignment="Center">
+          <StackPanel Orientation="Horizontal" Spacing="9">
+            <Ellipse Width="8" Height="8" Fill="{Binding StatusBrush}" VerticalAlignment="Center" />
+            <TextBlock Text="{Binding DeviceSummary}" FontSize="12.5" FontWeight="SemiBold" VerticalAlignment="Center" />
+            <TextBlock Text="{Binding FpsText}" FontSize="11.5" Foreground="{StaticResource DimBrush}" VerticalAlignment="Center" />
           </StackPanel>
         </Border>
 
-        <!-- Alerte logiciels concurrents -->
-        <Border DockPanel.Dock="Bottom" IsVisible="{Binding HasConflicts}" Background="#2B2210" BorderBrush="#5A4517"
-                BorderThickness="1" CornerRadius="10" Padding="12" Margin="0,12,0,0">
-          <StackPanel Spacing="6">
-            <TextBlock Text="Logiciel RGB concurrent détecté" FontWeight="SemiBold" Foreground="{StaticResource WarnBrush}" />
-            <TextBlock Text="Il peut écraser les couleurs. Voir Paramètres." Classes="muted" />
-          </StackPanel>
-        </Border>
+        <StackPanel Grid.Column="3" Orientation="Horizontal" Spacing="10" VerticalAlignment="Center" Margin="0,0,22,0"
+                    ToolTip.Tip="Luminosité générale">
+          <PathIcon Data="{x:Static vm:Icons.Sun}" Width="17" Height="17" Foreground="{StaticResource MutedBrush}" />
+          <Slider Width="150" Minimum="0" Maximum="100" Value="{Binding MasterBrightness}" VerticalAlignment="Center" Margin="0" />
+          <TextBlock Text="{Binding MasterBrightness, StringFormat={}{0}%}" Width="38" FontSize="12" Foreground="{StaticResource MutedBrush}" VerticalAlignment="Center" />
+        </StackPanel>
 
-        <TextBlock DockPanel.Dock="Top" Text="PROFILS" Classes="section" Margin="2,0,0,10" />
-        <Grid DockPanel.Dock="Top" ColumnDefinitions="*,6,*,6,*" Margin="0,0,0,10">
-          <Button Grid.Column="0" Content="Nouveau" Padding="4,4" Command="{Binding NewProfileCommand}" Classes="small" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" />
-          <Button Grid.Column="2" Content="Copier" Padding="4,4" Command="{Binding DuplicateProfileCommand}" Classes="small" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" />
-          <Button Grid.Column="4" Content="Suppr." Padding="4,4" Command="{Binding DeleteProfileCommand}" Classes="small" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" />
-        </Grid>
-        <TextBox DockPanel.Dock="Top" x:Name="ProfileNameBox" Watermark="Nom du profil" Margin="0,0,0,10"
-                 Text="{Binding SelectedProfile.Name, Mode=OneWay}" />
-        <ListBox Classes="profiles" ItemsSource="{Binding Profiles}" SelectedItem="{Binding SelectedProfile}">
+        <ToggleButton Grid.Column="4" IsChecked="{Binding LightsOn}" CornerRadius="18" Height="36" Padding="14,0"
+                      VerticalAlignment="Center" ToolTip.Tip="Allumer / éteindre tout l'éclairage">
+          <StackPanel Orientation="Horizontal" Spacing="8">
+            <PathIcon Data="{x:Static vm:Icons.Power}" Width="15" Height="15" />
+            <TextBlock Text="Éclairage" FontSize="12.5" FontWeight="SemiBold" VerticalAlignment="Center" />
+          </StackPanel>
+        </ToggleButton>
+      </Grid>
+    </Border>
+
+    <!-- ===================== Rail de navigation ===================== -->
+    <Border Grid.Row="1" Background="{StaticResource RailBrush}" BorderBrush="{StaticResource LineBrush}" BorderThickness="0,0,1,0">
+      <DockPanel Margin="10,16">
+        <TextBlock DockPanel.Dock="Bottom" Text="{Binding Version}" FontSize="10.5" Foreground="{StaticResource DimBrush}" HorizontalAlignment="Center" />
+        <ListBox Classes="nav" ItemsSource="{Binding Nav}" SelectedIndex="{Binding SelectedPage}">
           <ListBox.ItemTemplate>
-            <DataTemplate x:DataType="vm:ProfileItem">
-              <TextBlock Text="{Binding Name}" />
+            <DataTemplate x:DataType="vm:NavItem">
+              <StackPanel Spacing="6" Margin="0,12" HorizontalAlignment="Center">
+                <PathIcon Data="{Binding Icon}" Width="22" Height="22" HorizontalAlignment="Center" />
+                <TextBlock Text="{Binding Label}" FontSize="11" FontWeight="SemiBold" HorizontalAlignment="Center" />
+              </StackPanel>
             </DataTemplate>
           </ListBox.ItemTemplate>
         </ListBox>
       </DockPanel>
     </Border>
 
-    <!-- ===================== Contenu ===================== -->
-    <DockPanel Grid.Column="1">
-      <Border DockPanel.Dock="Bottom" IsVisible="{Binding Message, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"
-              Background="#1C1F27" BorderBrush="{StaticResource CardBorderBrush}" BorderThickness="0,1,0,0" Padding="16,8">
+    <!-- ===================== Pages ===================== -->
+    <Panel Grid.Row="1" Grid.Column="1">
+
+      <!-- ========== Éclairage ========== -->
+      <Grid ColumnDefinitions="*,380" IsVisible="{Binding IsLightingPage}">
         <DockPanel>
-          <Button DockPanel.Dock="Right" Content="OK" Classes="small" Click="DismissMessage" />
-          <TextBlock Text="{Binding Message}" VerticalAlignment="Center" TextWrapping="Wrap" />
-        </DockPanel>
-      </Border>
-
-      <TabControl SelectedIndex="{Binding SelectedTab}" Margin="20,8,20,0">
-
-        <!-- ===================== Effets ===================== -->
-        <TabItem Header="Effets">
-          <ScrollViewer HorizontalScrollBarVisibility="Disabled">
-            <StackPanel Spacing="16" Margin="0,12,8,24">
-
-              <Border Classes="card" Padding="12,10">
-                <c:LedPreview x:Name="Preview" />
-              </Border>
-
-              <Border Classes="card">
-                <Grid ColumnDefinitions="Auto,*,Auto" RowDefinitions="Auto">
-                  <TextBlock Text="Appliquer à" VerticalAlignment="Center" Margin="0,0,12,0" />
-                  <ComboBox Grid.Column="1" ItemsSource="{Binding Targets}" SelectedItem="{Binding SelectedTarget}"
-                            HorizontalAlignment="Stretch" MaxWidth="520">
-                    <ComboBox.ItemTemplate>
-                      <DataTemplate x:DataType="vm:EditTarget">
-                        <TextBlock Text="{Binding Label}" />
-                      </DataTemplate>
-                    </ComboBox.ItemTemplate>
-                  </ComboBox>
-                  <ToggleSwitch Grid.Column="2" IsChecked="{Binding SyncAcrossDevices}" IsVisible="{Binding IsGlobalTarget}"
-                                OnContent="Effet synchronisé d'un appareil à l'autre" OffContent="Chaque zone joue l'effet séparément"
-                                Margin="16,0,0,0"
-                                ToolTip.Tip="Synchronisé : toutes les zones sont mises bout à bout (ordre réglable dans Appareils), la vague traverse tout le PC." />
-                </Grid>
-              </Border>
-
-              <Border Classes="card">
-                <StackPanel>
-                  <TextBlock Text="Effet" Classes="h2" />
-                  <ListBox Classes="effects" ItemsSource="{Binding Editor.Effects}" SelectedItem="{Binding Editor.SelectedEffect}">
-                    <ListBox.ItemsPanel>
-                      <ItemsPanelTemplate>
-                        <WrapPanel />
-                      </ItemsPanelTemplate>
-                    </ListBox.ItemsPanel>
-                    <ListBox.ItemTemplate>
-                      <DataTemplate x:DataType="fx:EffectInfo">
-                        <StackPanel Width="168" Margin="14,11" Spacing="3" ToolTip.Tip="{Binding Description}">
-                          <TextBlock Text="{Binding Name}" FontWeight="SemiBold" />
-                          <TextBlock Text="{Binding Description}" Classes="muted" FontSize="11" MaxLines="2" TextTrimming="CharacterEllipsis" />
-                        </StackPanel>
-                      </DataTemplate>
-                    </ListBox.ItemTemplate>
-                  </ListBox>
+            <StackPanel DockPanel.Dock="Top" Spacing="14" Margin="32,26,28,8">
+              <DockPanel>
+                <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                  <Button Classes="small" Command="{Binding NewProfileCommand}" ToolTip.Tip="Nouveau profil">
+                    <StackPanel Orientation="Horizontal" Spacing="6">
+                      <PathIcon Data="{x:Static vm:Icons.Plus}" Width="11" Height="11" />
+                      <TextBlock Text="Profil" />
+                    </StackPanel>
+                  </Button>
+                  <Button Classes="small" Content="Options" ToolTip.Tip="Renommer, dupliquer, supprimer">
+                    <Button.Flyout>
+                      <MenuFlyout Placement="BottomEdgeAlignedRight">
+                        <MenuItem Header="Renommer" Command="{Binding StartRenameCommand}" />
+                        <MenuItem Header="Dupliquer" Command="{Binding DuplicateProfileCommand}" />
+                        <MenuItem Header="Supprimer" Command="{Binding DeleteProfileCommand}" />
+                      </MenuFlyout>
+                    </Button.Flyout>
+                  </Button>
                 </StackPanel>
+                <StackPanel>
+                  <TextBlock Text="Éclairage" Classes="title" />
+                  <TextBlock Text="Choisis un profil et un effet, tout le PC suit en direct." Classes="muted" />
+                </StackPanel>
+              </DockPanel>
+
+              <Border IsVisible="{Binding IsRenaming}" Classes="card" Padding="12">
+                <DockPanel>
+                  <Button DockPanel.Dock="Right" Classes="accent small" Content="Valider" Command="{Binding CommitRenameCommand}" Margin="8,0,0,0" />
+                  <TextBox x:Name="RenameBox" Text="{Binding RenameText}" Watermark="Nom du profil" />
+                </DockPanel>
               </Border>
 
-              <Grid ColumnDefinitions="*,16,*">
-                <!-- Couleurs -->
-                <Border Grid.Column="2" Classes="card" IsVisible="{Binding Editor.UsesColors}" VerticalAlignment="Stretch">
-                  <StackPanel Spacing="12">
-                    <DockPanel>
-                      <Button DockPanel.Dock="Right" Content="Couleurs conseillées" Classes="small"
-                              IsVisible="{Binding Editor.HasSuggestedColors}" Command="{Binding Editor.ApplySuggestedCommand}" />
-                      <StackPanel>
-                        <TextBlock Text="Couleurs" Classes="h2" Margin="0" />
-                        <TextBlock Text="{Binding Editor.ColorsHint}" Classes="muted" />
-                      </StackPanel>
-                    </DockPanel>
-                    <ItemsControl ItemsSource="{Binding Editor.Colors}">
-                      <ItemsControl.ItemsPanel>
-                        <ItemsPanelTemplate>
-                          <WrapPanel />
-                        </ItemsPanelTemplate>
-                      </ItemsControl.ItemsPanel>
-                      <ItemsControl.ItemTemplate>
-                        <DataTemplate x:DataType="vm:ColorSlotViewModel">
-                          <StackPanel Orientation="Horizontal" Margin="0,0,10,10" Spacing="2">
-                            <ColorPicker Color="{Binding Color}" IsAlphaEnabled="False" IsAlphaVisible="False" />
-                            <Button Content="×" Classes="small" Command="{Binding RemoveCommand}" Padding="7,2"
-                                    ToolTip.Tip="Retirer cette couleur" VerticalAlignment="Center" />
-                          </StackPanel>
-                        </DataTemplate>
-                      </ItemsControl.ItemTemplate>
-                    </ItemsControl>
-                    <Button Content="+ Ajouter une couleur" Command="{Binding Editor.AddColorCommand}" IsEnabled="{Binding Editor.CanAddColor}" Classes="small" />
-                    <TextBlock Text="Palettes rapides" Classes="section" Margin="0,6,0,0" />
-                    <ItemsControl ItemsSource="{Binding Editor.Palettes}">
-                      <ItemsControl.ItemsPanel>
-                        <ItemsPanelTemplate>
-                          <WrapPanel />
-                        </ItemsPanelTemplate>
-                      </ItemsControl.ItemsPanel>
-                      <ItemsControl.ItemTemplate>
-                        <DataTemplate x:DataType="vm:PalettePreset">
-                          <Button Margin="0,0,8,8" Padding="4" Classes="small" ToolTip.Tip="{Binding Name}"
-                                  Command="{Binding $parent[ItemsControl].((vm:MainViewModel)DataContext).Editor.ApplyPaletteCommand}"
-                                  CommandParameter="{Binding}">
-                            <StackPanel Spacing="4">
-                              <Border Width="76" Height="14" CornerRadius="4" Background="{Binding Preview}" />
-                              <TextBlock Text="{Binding Name}" FontSize="10" HorizontalAlignment="Center" />
-                            </StackPanel>
-                          </Button>
-                        </DataTemplate>
-                      </ItemsControl.ItemTemplate>
-                    </ItemsControl>
-                  </StackPanel>
-                </Border>
+              <ListBox Classes="chips" ItemsSource="{Binding Profiles}" SelectedItem="{Binding SelectedProfile}">
+                <ListBox.ItemsPanel>
+                  <ItemsPanelTemplate>
+                    <WrapPanel />
+                  </ItemsPanelTemplate>
+                </ListBox.ItemsPanel>
+                <ListBox.ItemTemplate>
+                  <DataTemplate x:DataType="vm:ProfileItem">
+                    <TextBlock Text="{Binding Name}" />
+                  </DataTemplate>
+                </ListBox.ItemTemplate>
+              </ListBox>
+            </StackPanel>
 
-                <!-- Réglages -->
-                <Border Grid.Column="0" Classes="card" VerticalAlignment="Stretch">
-                  <StackPanel Spacing="14">
-                    <TextBlock Text="Réglages" Classes="h2" Margin="0" />
-
-                    <StackPanel IsVisible="{Binding Editor.UsesSpeed}">
-                      <DockPanel>
-                        <TextBlock DockPanel.Dock="Right" Text="{Binding Editor.Speed}" Classes="muted" />
-                        <TextBlock Text="Vitesse" />
-                      </DockPanel>
-                      <Slider Minimum="1" Maximum="100" Value="{Binding Editor.Speed}" TickFrequency="1" IsSnapToTickEnabled="True" />
-                    </StackPanel>
-
-                    <StackPanel>
-                      <DockPanel>
-                        <TextBlock DockPanel.Dock="Right" Text="{Binding Editor.Brightness, StringFormat={}{0} %}" Classes="muted" />
-                        <TextBlock Text="Luminosité" />
-                      </DockPanel>
-                      <Slider Minimum="0" Maximum="100" Value="{Binding Editor.Brightness}" TickFrequency="1" IsSnapToTickEnabled="True" />
-                    </StackPanel>
-
-                    <StackPanel IsVisible="{Binding Editor.UsesSize}">
-                      <DockPanel>
-                        <TextBlock DockPanel.Dock="Right" Text="{Binding Editor.Size}" Classes="muted" />
-                        <TextBlock Text="{Binding Editor.SizeLabel}" />
-                      </DockPanel>
-                      <Slider Minimum="1" Maximum="100" Value="{Binding Editor.Size}" TickFrequency="1" IsSnapToTickEnabled="True" />
-                    </StackPanel>
-
-                    <StackPanel IsVisible="{Binding Editor.UsesDirection}" Spacing="6">
-                      <TextBlock Text="Direction" />
-                      <ComboBox ItemsSource="{Binding Editor.Directions}" SelectedItem="{Binding Editor.Direction}" HorizontalAlignment="Stretch">
-                        <ComboBox.ItemTemplate>
-                          <DataTemplate x:DataType="vm:DirectionChoice">
-                            <TextBlock Text="{Binding Label}" />
-                          </DataTemplate>
-                        </ComboBox.ItemTemplate>
-                      </ComboBox>
-                    </StackPanel>
-
-                    <ToggleSwitch IsVisible="{Binding Editor.UsesSmooth}" IsChecked="{Binding Editor.Smooth}"
-                                  OnContent="{Binding Editor.SmoothLabel}" OffContent="{Binding Editor.SmoothLabel}" />
-                  </StackPanel>
+        <ScrollViewer HorizontalScrollBarVisibility="Disabled">
+          <StackPanel Margin="32,10,28,32" Spacing="22">
+            <!-- Vitrine en direct -->
+            <Border Classes="hero">
+              <Grid>
+                <c:RigView x:Name="Rig" Margin="28,34,28,18" />
+                <StackPanel Orientation="Horizontal" Spacing="8" Margin="20,14" HorizontalAlignment="Left" VerticalAlignment="Top">
+                  <Ellipse Width="7" Height="7" Fill="#FF3C6A" VerticalAlignment="Center" />
+                  <TextBlock Text="EN DIRECT" Classes="section" Foreground="#C9CCD6" VerticalAlignment="Center" />
+                </StackPanel>
+                <Border Margin="0,10,14,0" Padding="10,5" CornerRadius="10" Background="#1A1D28" HorizontalAlignment="Right" VerticalAlignment="Top">
+                  <TextBlock Text="{Binding SelectedEffectName}" FontSize="12" FontWeight="SemiBold" />
                 </Border>
               </Grid>
-            </StackPanel>
-          </ScrollViewer>
-        </TabItem>
+            </Border>
 
-        <!-- ===================== Appareils ===================== -->
-        <TabItem Header="Appareils">
+            <StackPanel Spacing="14">
+              <TextBlock Text="EFFETS" Classes="section" />
+              <ListBox x:Name="Tiles" Classes="tiles" ItemsSource="{Binding Editor.Effects}" SelectedItem="{Binding Editor.SelectedEffect}">
+                <ListBox.ItemsPanel>
+                  <ItemsPanelTemplate>
+                    <WrapPanel />
+                  </ItemsPanelTemplate>
+                </ListBox.ItemsPanel>
+                <ListBox.ItemTemplate>
+                  <DataTemplate x:DataType="fx:EffectInfo">
+                    <Grid ColumnDefinitions="58,*" Width="214" Height="78" Margin="12,0" ToolTip.Tip="{Binding Description}">
+                      <c:EffectThumb Info="{Binding}" Width="54" Height="54" VerticalAlignment="Center" />
+                      <StackPanel Grid.Column="1" VerticalAlignment="Center" Margin="12,0,0,0" Spacing="3">
+                        <TextBlock Text="{Binding Name}" FontWeight="SemiBold" FontSize="13.5" />
+                        <TextBlock Text="{Binding Description}" Classes="muted" FontSize="11" MaxLines="2" TextTrimming="CharacterEllipsis" />
+                      </StackPanel>
+                    </Grid>
+                  </DataTemplate>
+                </ListBox.ItemTemplate>
+              </ListBox>
+            </StackPanel>
+          </StackPanel>
+        </ScrollViewer>
+        </DockPanel>
+
+        <!-- Panneau de personnalisation -->
+        <Border Grid.Column="1" Background="{StaticResource PanelBrush}" BorderBrush="{StaticResource LineBrush}" BorderThickness="1,0,0,0">
           <ScrollViewer HorizontalScrollBarVisibility="Disabled">
-            <StackPanel Spacing="14" Margin="0,12,8,24">
-              <Border Classes="card">
+            <StackPanel Margin="26,28,26,32" Spacing="24">
+              <StackPanel Spacing="6">
+                <TextBlock Text="PERSONNALISER" Classes="section" />
+                <TextBlock Text="{Binding SelectedEffectName}" FontSize="22" FontWeight="Bold" />
+                <TextBlock Text="{Binding SelectedEffectDescription}" Classes="muted" />
+              </StackPanel>
+
+              <StackPanel Spacing="8" IsVisible="{Binding HasOverrides}">
+                <TextBlock Text="Appliquer à" FontSize="13" Foreground="{StaticResource MutedBrush}" />
+                <ComboBox ItemsSource="{Binding Targets}" SelectedItem="{Binding SelectedTarget}" HorizontalAlignment="Stretch">
+                  <ComboBox.ItemTemplate>
+                    <DataTemplate x:DataType="vm:EditTarget">
+                      <TextBlock Text="{Binding Label}" />
+                    </DataTemplate>
+                  </ComboBox.ItemTemplate>
+                </ComboBox>
+              </StackPanel>
+
+              <Border IsVisible="{Binding IsGlobalTarget}" Background="#14171E" CornerRadius="12" Padding="14,10">
                 <DockPanel>
-                  <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
-                    <Button Content="Tout activer" Command="{Binding EnableAllZonesCommand}" Classes="small" />
-                    <Button Content="Relire le matériel" Command="{Binding RescanCommand}" Classes="small" />
-                  </StackPanel>
-                  <StackPanel Spacing="4">
-                    <TextBlock Text="Appareils et zones" Classes="h2" Margin="0" />
-                    <TextBlock Classes="muted" Text="Décoche une zone pour l'éteindre. « Inverser » change son sens (ventilo monté à l'envers...). La position règle l'ordre de passage de l'effet quand il est synchronisé. Pour les headers ARGB de la carte mère (JRAINBOW), indique le nombre exact de LEDs branchées puis « Appliquer »." />
+                  <ToggleSwitch DockPanel.Dock="Right" IsChecked="{Binding SyncAcrossDevices}" OnContent="" OffContent="" Margin="0,0,-12,0" />
+                  <StackPanel VerticalAlignment="Center">
+                    <TextBlock Text="Traverser tout le PC" FontWeight="SemiBold" FontSize="13" />
+                    <TextBlock Text="L'effet passe d'un appareil à l'autre" Classes="muted" FontSize="11.5" />
                   </StackPanel>
                 </DockPanel>
               </Border>
 
-              <Border Classes="card" IsVisible="{Binding HasNoDevices}">
-                <TextBlock Classes="muted" Text="Aucun appareil. Vérifie l'état de connexion (en bas à gauche) et l'onglet Paramètres. Tu peux activer le mode démo pour essayer les effets." />
-              </Border>
+              <!-- Couleurs -->
+              <StackPanel Spacing="12" IsVisible="{Binding Editor.UsesColors}">
+                <DockPanel>
+                  <Button DockPanel.Dock="Right" Classes="small ghost" Content="Conseillées" IsVisible="{Binding Editor.HasSuggestedColors}"
+                          Command="{Binding Editor.ApplySuggestedCommand}" Foreground="{StaticResource AccentBrush}" />
+                  <StackPanel>
+                    <TextBlock Text="Couleurs" Classes="h2" />
+                    <TextBlock Text="{Binding Editor.ColorsHint}" Classes="muted" FontSize="11.5" />
+                  </StackPanel>
+                </DockPanel>
+                <WrapPanel>
+                  <ItemsControl ItemsSource="{Binding Editor.Colors}">
+                    <ItemsControl.ItemsPanel>
+                      <ItemsPanelTemplate>
+                        <WrapPanel />
+                      </ItemsPanelTemplate>
+                    </ItemsControl.ItemsPanel>
+                    <ItemsControl.ItemTemplate>
+                      <DataTemplate x:DataType="vm:ColorSlotViewModel">
+                        <Button Classes="swatch" Margin="0,0,10,10" ToolTip.Tip="Modifier la couleur">
+                          <Button.Background>
+                            <SolidColorBrush Color="{Binding Color}" />
+                          </Button.Background>
+                          <Button.Flyout>
+                            <Flyout Placement="LeftEdgeAlignedTop">
+                              <StackPanel Spacing="10" Width="300">
+                                <ColorView Color="{Binding Color}" IsAlphaEnabled="False" IsAlphaVisible="False"
+                                           IsColorComponentsVisible="False" IsColorModelVisible="False"
+                                           ColorSpectrumShape="Ring" />
+                                <Button Content="Retirer cette couleur" Command="{Binding RemoveCommand}" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" />
+                              </StackPanel>
+                            </Flyout>
+                          </Button.Flyout>
+                        </Button>
+                      </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                  </ItemsControl>
+                  <Button Classes="round" Command="{Binding Editor.AddColorCommand}" IsEnabled="{Binding Editor.CanAddColor}"
+                          ToolTip.Tip="Ajouter une couleur" Width="42" Height="42" CornerRadius="21">
+                    <PathIcon Data="{x:Static vm:Icons.Plus}" Width="13" Height="13" />
+                  </Button>
+                </WrapPanel>
+                <ItemsControl ItemsSource="{Binding Editor.Palettes}">
+                  <ItemsControl.ItemsPanel>
+                    <ItemsPanelTemplate>
+                      <WrapPanel />
+                    </ItemsPanelTemplate>
+                  </ItemsControl.ItemsPanel>
+                  <ItemsControl.ItemTemplate>
+                    <DataTemplate x:DataType="vm:PalettePreset">
+                      <Button Margin="0,0,8,8" Padding="3" CornerRadius="9" ToolTip.Tip="{Binding Name}"
+                              Command="{Binding $parent[ItemsControl].((vm:MainViewModel)DataContext).Editor.ApplyPaletteCommand}"
+                              CommandParameter="{Binding}">
+                        <Border Width="58" Height="16" CornerRadius="6" Background="{Binding Preview}" />
+                      </Button>
+                    </DataTemplate>
+                  </ItemsControl.ItemTemplate>
+                </ItemsControl>
+              </StackPanel>
 
-              <ItemsControl ItemsSource="{Binding Devices}">
+              <!-- Réglages -->
+              <StackPanel Spacing="18">
+                <StackPanel IsVisible="{Binding Editor.UsesSpeed}" Spacing="2">
+                  <DockPanel>
+                    <TextBlock DockPanel.Dock="Right" Text="{Binding Editor.Speed}" Foreground="{StaticResource MutedBrush}" FontSize="12.5" />
+                    <TextBlock Text="Vitesse" FontSize="13" FontWeight="SemiBold" />
+                  </DockPanel>
+                  <Slider Minimum="1" Maximum="100" Value="{Binding Editor.Speed}" />
+                </StackPanel>
+                <StackPanel Spacing="2">
+                  <DockPanel>
+                    <TextBlock DockPanel.Dock="Right" Text="{Binding Editor.Brightness, StringFormat={}{0}%}" Foreground="{StaticResource MutedBrush}" FontSize="12.5" />
+                    <TextBlock Text="Luminosité de l'effet" FontSize="13" FontWeight="SemiBold" />
+                  </DockPanel>
+                  <Slider Minimum="0" Maximum="100" Value="{Binding Editor.Brightness}" />
+                </StackPanel>
+                <StackPanel IsVisible="{Binding Editor.UsesSize}" Spacing="2">
+                  <DockPanel>
+                    <TextBlock DockPanel.Dock="Right" Text="{Binding Editor.Size}" Foreground="{StaticResource MutedBrush}" FontSize="12.5" />
+                    <TextBlock Text="{Binding Editor.SizeLabel}" FontSize="13" FontWeight="SemiBold" />
+                  </DockPanel>
+                  <Slider Minimum="1" Maximum="100" Value="{Binding Editor.Size}" />
+                </StackPanel>
+                <StackPanel IsVisible="{Binding Editor.UsesDirection}" Spacing="8">
+                  <TextBlock Text="Direction" FontSize="13" FontWeight="SemiBold" />
+                  <ListBox Classes="segmented" ItemsSource="{Binding Editor.Directions}" SelectedItem="{Binding Editor.Direction}">
+                    <ListBox.ItemsPanel>
+                      <ItemsPanelTemplate>
+                        <UniformGrid Rows="1" />
+                      </ItemsPanelTemplate>
+                    </ListBox.ItemsPanel>
+                    <ListBox.ItemTemplate>
+                      <DataTemplate x:DataType="vm:DirectionChoice">
+                        <TextBlock Text="{Binding Symbol}" FontSize="15" FontWeight="SemiBold" ToolTip.Tip="{Binding Label}"
+                                   HorizontalAlignment="Center" VerticalAlignment="Center" />
+                      </DataTemplate>
+                    </ListBox.ItemTemplate>
+                  </ListBox>
+                </StackPanel>
+                <Border IsVisible="{Binding Editor.UsesSmooth}" Background="#14171E" CornerRadius="12" Padding="14,10">
+                  <DockPanel>
+                    <ToggleSwitch DockPanel.Dock="Right" IsChecked="{Binding Editor.Smooth}" OnContent="" OffContent="" Margin="0,0,-12,0" />
+                    <TextBlock Text="{Binding Editor.SmoothLabel}" FontSize="13" TextWrapping="Wrap" VerticalAlignment="Center" />
+                  </DockPanel>
+                </Border>
+              </StackPanel>
+            </StackPanel>
+          </ScrollViewer>
+        </Border>
+      </Grid>
+
+      <!-- ========== Appareils ========== -->
+      <ScrollViewer IsVisible="{Binding IsDevicesPage}" HorizontalScrollBarVisibility="Disabled">
+        <StackPanel Margin="32,26,32,32" Spacing="20">
+          <DockPanel>
+            <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+              <Button Classes="small" Content="Tout activer" Command="{Binding EnableAllZonesCommand}" />
+              <Button Classes="small" Content="Relancer la détection" Command="{Binding RescanCommand}" />
+              <Button Classes="small accent" Content="Réappliquer" Command="{Binding ReapplyCommand}" />
+            </StackPanel>
+            <StackPanel>
+              <TextBlock Text="Appareils" Classes="title" />
+              <TextBlock Text="Indique ce qui est branché sur chaque connecteur pour un éclairage et un aperçu exacts." Classes="muted" />
+            </StackPanel>
+          </DockPanel>
+
+          <Border Classes="hero">
+            <c:RigView x:Name="RigDevices" ScaleFactor="0.82" Margin="24,24,24,12" />
+          </Border>
+
+          <Border Classes="card" IsVisible="{Binding HasNoDevices}">
+            <StackPanel Spacing="8">
+              <TextBlock Text="Aucun appareil piloté pour l'instant" Classes="h2" />
+              <TextBlock Text="{Binding StatusText}" Classes="muted" />
+              <TextBlock Classes="muted" Text="L'onglet Matériel montre tout ce qui a été trouvé dans le PC et ce qui manque." />
+            </StackPanel>
+          </Border>
+
+          <ItemsControl ItemsSource="{Binding Devices}">
+            <ItemsControl.ItemTemplate>
+              <DataTemplate x:DataType="vm:DeviceViewModel">
+                <Border Classes="card" Margin="0,0,0,16">
+                  <StackPanel Spacing="14">
+                    <StackPanel Spacing="3">
+                      <TextBlock Text="{Binding Name}" FontSize="16" FontWeight="SemiBold" />
+                      <TextBlock Text="{Binding Subtitle}" Classes="muted" />
+                    </StackPanel>
+                    <Grid ColumnDefinitions="1.6*,1.5*,1.7*,Auto,Auto,Auto" Margin="14,0">
+                      <TextBlock Text="ZONE" Classes="section" />
+                      <TextBlock Grid.Column="1" Text="LEDS BRANCHÉES" Classes="section" />
+                      <TextBlock Grid.Column="2" Text="CE QUI EST BRANCHÉ" Classes="section" />
+                      <TextBlock Grid.Column="3" Text="SENS" Classes="section" Margin="0,0,24,0" />
+                      <TextBlock Grid.Column="4" Text="ORDRE" Classes="section" Margin="0,0,24,0" />
+                    </Grid>
+                    <ItemsControl ItemsSource="{Binding Zones}">
+                      <ItemsControl.ItemTemplate>
+                        <DataTemplate x:DataType="vm:ZoneViewModel">
+                          <Border Background="#1A1D25" CornerRadius="12" Padding="14,10" Margin="0,0,0,8">
+                            <Grid ColumnDefinitions="1.6*,1.5*,1.7*,Auto,Auto,Auto">
+                              <StackPanel VerticalAlignment="Center" Orientation="Horizontal" Spacing="10">
+                                <ToggleSwitch IsChecked="{Binding Enabled}" OnContent="" OffContent="" MinWidth="0" Margin="0,0,-8,0" />
+                                <StackPanel VerticalAlignment="Center">
+                                  <TextBlock Text="{Binding Name}" FontWeight="SemiBold" />
+                                  <TextBlock Text="{Binding OverrideText}" IsVisible="{Binding HasOverride}" FontSize="11" Foreground="{StaticResource AccentBrush}" />
+                                </StackPanel>
+                              </StackPanel>
+
+                              <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                                <TextBlock Text="{Binding LedText}" Foreground="{StaticResource MutedBrush}" VerticalAlignment="Center" IsVisible="{Binding !IsResizable}" />
+                                <NumericUpDown IsVisible="{Binding IsResizable}" Value="{Binding DesiredSize}" Minimum="{Binding MinLeds}"
+                                               Maximum="{Binding MaxLeds}" Increment="1" FormatString="0" Width="118" />
+                                <Button IsVisible="{Binding IsResizable}" Classes="small" Content="OK" Command="{Binding ApplySizeCommand}" />
+                              </StackPanel>
+
+                              <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center" IsVisible="{Binding CanChooseLook}">
+                                <ComboBox ItemsSource="{x:Static vm:ZoneViewModel.Looks}" SelectedItem="{Binding SelectedLook}" Width="150">
+                                  <ComboBox.ItemTemplate>
+                                    <DataTemplate x:DataType="vm:LookChoice">
+                                      <TextBlock Text="{Binding Label}" />
+                                    </DataTemplate>
+                                  </ComboBox.ItemTemplate>
+                                </ComboBox>
+                                <NumericUpDown IsVisible="{Binding IsFans}" Value="{Binding Fans}" Minimum="1" Maximum="12" Increment="1"
+                                               FormatString="0" Width="104" ToolTip.Tip="Nombre de ventilateurs chaînés" />
+                              </StackPanel>
+
+                              <CheckBox Grid.Column="3" IsChecked="{Binding Reverse}" Content="Inverser" Margin="0,0,18,0" VerticalAlignment="Center" />
+
+                              <StackPanel Grid.Column="4" Orientation="Horizontal" Spacing="4" VerticalAlignment="Center" Margin="0,0,18,0">
+                                <Border Width="26" Height="26" CornerRadius="13" Background="#232733">
+                                  <TextBlock Text="{Binding Position}" FontSize="11" FontWeight="SemiBold" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                </Border>
+                                <Button Classes="small" Content="▲" Padding="8,4" Command="{Binding MoveUpCommand}" ToolTip.Tip="Plus tôt dans la chaîne" />
+                                <Button Classes="small" Content="▼" Padding="8,4" Command="{Binding MoveDownCommand}" ToolTip.Tip="Plus tard dans la chaîne" />
+                              </StackPanel>
+
+                              <Panel Grid.Column="5" VerticalAlignment="Center">
+                                <Button Classes="small" Content="Effet propre" Command="{Binding CustomizeCommand}" IsVisible="{Binding !HasOverride}"
+                                        ToolTip.Tip="Donner à cette zone son propre effet" />
+                                <Button Classes="small" Content="Suivre le profil" Command="{Binding ClearOverrideCommand}" IsVisible="{Binding HasOverride}" />
+                              </Panel>
+                            </Grid>
+                          </Border>
+                        </DataTemplate>
+                      </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                  </StackPanel>
+                </Border>
+              </DataTemplate>
+            </ItemsControl.ItemTemplate>
+          </ItemsControl>
+        </StackPanel>
+      </ScrollViewer>
+
+      <!-- ========== Matériel ========== -->
+      <ScrollViewer IsVisible="{Binding IsHardwarePage}" HorizontalScrollBarVisibility="Disabled">
+        <StackPanel Margin="32,26,32,32" Spacing="20">
+          <DockPanel>
+            <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+              <Button Classes="small" Content="Analyser à nouveau" Command="{Binding ScanHardwareCommand}" />
+              <Button Classes="small accent" Content="Enregistrer le rapport" Command="{Binding SaveReportCommand}" />
+            </StackPanel>
+            <StackPanel>
+              <TextBlock Text="Matériel détecté" Classes="title" />
+              <TextBlock Text="Tout ce qui peut avoir du RGB dans ton PC, et ce que PrismRGB pilote déjà." Classes="muted" />
+            </StackPanel>
+          </DockPanel>
+
+          <TextBlock Text="Analyse en cours..." Classes="muted" IsVisible="{Binding Scanning}" />
+
+          <ItemsControl ItemsSource="{Binding ScanEntries}">
+            <ItemsControl.ItemTemplate>
+              <DataTemplate x:DataType="vm:ScanEntryViewModel">
+                <Border Classes="card" Margin="0,0,0,12" Padding="18">
+                  <Grid ColumnDefinitions="Auto,*,Auto">
+                    <Border Width="44" Height="44" CornerRadius="12" Background="#1E2230" VerticalAlignment="Top">
+                      <PathIcon Data="{Binding Icon}" Width="20" Height="20" Foreground="#B9A4FF" />
+                    </Border>
+                    <StackPanel Grid.Column="1" Margin="16,0" Spacing="4">
+                      <TextBlock Text="{Binding Category}" Classes="section" />
+                      <TextBlock Text="{Binding Name}" FontSize="15" FontWeight="SemiBold" TextWrapping="Wrap" />
+                      <TextBlock Text="{Binding Detail}" Classes="muted" />
+                      <TextBlock Text="{Binding Advice}" IsVisible="{Binding HasAdvice}" Classes="muted" Foreground="#A9AEBB" Margin="0,4,0,0" />
+                    </StackPanel>
+                    <Border Grid.Column="2" Padding="11,5" CornerRadius="10" Background="{Binding StatusBackground}" VerticalAlignment="Top">
+                      <TextBlock Text="{Binding StatusText}" FontSize="11.5" FontWeight="SemiBold" Foreground="{Binding StatusBrush}" />
+                    </Border>
+                  </Grid>
+                </Border>
+              </DataTemplate>
+            </ItemsControl.ItemTemplate>
+          </ItemsControl>
+        </StackPanel>
+      </ScrollViewer>
+
+      <!-- ========== Réglages ========== -->
+      <ScrollViewer IsVisible="{Binding IsSettingsPage}" HorizontalScrollBarVisibility="Disabled">
+        <StackPanel Margin="32,26,32,32" Spacing="18" MaxWidth="900" HorizontalAlignment="Left">
+          <StackPanel>
+            <TextBlock Text="Réglages" Classes="title" />
+            <TextBlock Text="PrismRGB pilote ton matériel directement : aucun autre logiciel n'est nécessaire." Classes="muted" />
+          </StackPanel>
+
+          <Border Classes="card">
+            <StackPanel Spacing="14">
+              <TextBlock Text="Démarrage" Classes="h2" />
+              <ToggleSwitch IsChecked="{Binding StartWithWindows}" IsEnabled="{Binding AutostartSupported}" OnContent="Démarrer avec Windows" OffContent="Démarrer avec Windows" />
+              <ToggleSwitch IsChecked="{Binding StartMinimized}" OnContent="Démarrer réduit dans la zone de notification" OffContent="Démarrer réduit dans la zone de notification" />
+              <ToggleSwitch IsChecked="{Binding MinimizeToTray}" OnContent="Fermer la fenêtre laisse les effets tourner (zone de notification)" OffContent="Fermer la fenêtre laisse les effets tourner (zone de notification)" />
+            </StackPanel>
+          </Border>
+
+          <Border Classes="card">
+            <StackPanel Spacing="12">
+              <TextBlock Text="Animation" Classes="h2" />
+              <DockPanel>
+                <TextBlock DockPanel.Dock="Right" Text="{Binding TargetFps, StringFormat={}{0} img/s}" Foreground="{StaticResource MutedBrush}" />
+                <TextBlock Text="Fluidité" FontWeight="SemiBold" />
+              </DockPanel>
+              <Slider Minimum="10" Maximum="60" Value="{Binding TargetFps}" TickFrequency="5" IsSnapToTickEnabled="True" />
+              <TextBlock Classes="muted" Text="30 images/s est un bon réglage. Baisse si un contrôleur saccade." />
+            </StackPanel>
+          </Border>
+
+          <Border Classes="card">
+            <StackPanel Spacing="12">
+              <TextBlock Text="Logiciels RGB concurrents" Classes="h2" />
+              <TextBlock Classes="muted" Text="Deux logiciels qui écrivent sur le même contrôleur = couleurs qui sautent et effets qui « bugent ». Ferme les logiciels des constructeurs (MSI Center, iCUE, SignalRGB...) et retire-les du démarrage." />
+              <TextBlock Text="Aucun détecté, parfait." Foreground="#2FD27A" FontSize="13" IsVisible="{Binding !HasConflicts}" />
+              <ItemsControl ItemsSource="{Binding Conflicts}">
                 <ItemsControl.ItemTemplate>
-                  <DataTemplate x:DataType="vm:DeviceViewModel">
-                    <Border Classes="card" Margin="0,0,0,14">
-                      <StackPanel Spacing="10">
-                        <StackPanel Spacing="2">
-                          <TextBlock Text="{Binding Name}" FontSize="15" FontWeight="SemiBold" />
-                          <TextBlock Text="{Binding Subtitle}" Classes="muted" />
-                          <TextBlock IsVisible="{Binding NoDirectMode}" Foreground="{StaticResource WarnBrush}" FontSize="12" TextWrapping="Wrap"
-                                     Text="Pas de mode « Direct » : cet appareil ne gère que des couleurs fixes, les animations y seront saccadées ou ignorées." />
-                        </StackPanel>
-                        <ItemsControl ItemsSource="{Binding Zones}">
-                          <ItemsControl.ItemTemplate>
-                            <DataTemplate x:DataType="vm:ZoneViewModel">
-                              <Border Background="#1F222A" CornerRadius="8" Padding="12,8" Margin="0,0,0,6">
-                                <Grid ColumnDefinitions="2*,1.6*,Auto,Auto,Auto">
-                                  <StackPanel Grid.Column="0" VerticalAlignment="Center">
-                                    <CheckBox IsChecked="{Binding Enabled}" Content="{Binding Name}" FontWeight="SemiBold" />
-                                    <TextBlock Text="{Binding OverrideText}" IsVisible="{Binding HasOverride}" FontSize="11"
-                                               Foreground="{StaticResource AccentBrush}" Margin="28,0,0,0" />
-                                  </StackPanel>
-
-                                  <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
-                                    <TextBlock Text="{Binding LedText}" Classes="muted" VerticalAlignment="Center" MinWidth="56" />
-                                    <NumericUpDown IsVisible="{Binding IsResizable}" Value="{Binding DesiredSize}" Minimum="{Binding MinLeds}"
-                                                   Maximum="{Binding MaxLeds}" Increment="1" FormatString="0" Width="120" />
-                                    <Button IsVisible="{Binding IsResizable}" Content="Appliquer" Classes="small" Command="{Binding ApplySizeCommand}" />
-                                  </StackPanel>
-
-                                  <CheckBox Grid.Column="2" IsChecked="{Binding Reverse}" Content="Inverser" Margin="12,0" VerticalAlignment="Center" />
-
-                                  <StackPanel Grid.Column="3" Orientation="Horizontal" Spacing="4" VerticalAlignment="Center" Margin="0,0,12,0">
-                                    <TextBlock Text="{Binding Position}" Classes="muted" VerticalAlignment="Center" MinWidth="34" />
-                                    <Button Content="▲" Classes="small" Padding="8,3" Command="{Binding MoveUpCommand}" ToolTip.Tip="Plus tôt dans la chaîne" />
-                                    <Button Content="▼" Classes="small" Padding="8,3" Command="{Binding MoveDownCommand}" ToolTip.Tip="Plus tard dans la chaîne" />
-                                  </StackPanel>
-
-                                  <Panel Grid.Column="4" VerticalAlignment="Center">
-                                    <Button Content="Effet propre" Classes="small" Command="{Binding CustomizeCommand}" IsVisible="{Binding !HasOverride}"
-                                            ToolTip.Tip="Donner à cette zone son propre effet" />
-                                    <Button Content="Suivre le profil" Classes="small" Command="{Binding ClearOverrideCommand}" IsVisible="{Binding HasOverride}" />
-                                  </Panel>
-                                </Grid>
-                              </Border>
-                            </DataTemplate>
-                          </ItemsControl.ItemTemplate>
-                        </ItemsControl>
-                      </StackPanel>
+                  <DataTemplate x:DataType="vm:ConflictItem">
+                    <Border Background="#2B2210" CornerRadius="10" Padding="12,8" Margin="0,0,0,6">
+                      <DockPanel>
+                        <Button DockPanel.Dock="Right" Classes="small" Content="Fermer" Command="{Binding KillCommand}" />
+                        <TextBlock Text="{Binding Label}" VerticalAlignment="Center" Foreground="{StaticResource WarnBrush}" />
+                      </DockPanel>
                     </Border>
                   </DataTemplate>
                 </ItemsControl.ItemTemplate>
               </ItemsControl>
+              <Button Classes="small" Content="Vérifier à nouveau" Command="{Binding RefreshConflictsCommand}" HorizontalAlignment="Left" />
             </StackPanel>
-          </ScrollViewer>
-        </TabItem>
+          </Border>
 
-        <!-- ===================== Paramètres ===================== -->
-        <TabItem Header="Paramètres">
-          <ScrollViewer HorizontalScrollBarVisibility="Disabled">
-            <StackPanel Spacing="16" Margin="0,12,8,24" MaxWidth="900" HorizontalAlignment="Left">
-
-              <Border Classes="card">
-                <StackPanel Spacing="12">
-                  <TextBlock Text="Pilote matériel (OpenRGB)" Classes="h2" Margin="0" />
-                  <TextBlock Classes="muted" Text="PrismRGB utilise OpenRGB uniquement comme couche de pilotes, en arrière-plan et sans son interface. Effets, profils et reprise sur erreur sont gérés ici. Ne lance pas l'interface d'OpenRGB en même temps." />
-                  <TextBlock Text="Emplacement d'OpenRGB.exe" />
-                  <DockPanel>
-                    <Button DockPanel.Dock="Right" Content="Parcourir..." Click="BrowseOpenRgb" Margin="8,0,0,0" />
-                    <TextBox Text="{Binding OpenRgbPath}" Watermark="C:\...\OpenRGB\OpenRGB.exe" />
-                  </DockPanel>
-                  <StackPanel Orientation="Horizontal" Spacing="8">
-                    <Button Content="Télécharger OpenRGB" Command="{Binding OpenOpenRgbSiteCommand}" Classes="small" />
-                    <TextBlock Classes="muted" VerticalAlignment="Center" Text="Prends la version Windows 64 bits, dézippe-la dans le dossier de PrismRGB (sous-dossier OpenRGB) ou indique son chemin." />
-                  </StackPanel>
-                  <ToggleSwitch IsChecked="{Binding AutoLaunch}" OnContent="Lancer automatiquement le serveur OpenRGB invisible" OffContent="Lancer automatiquement le serveur OpenRGB invisible" />
-                  <ToggleSwitch IsChecked="{Binding StopServerOnExit}" OnContent="Arrêter le serveur en quittant PrismRGB" OffContent="Arrêter le serveur en quittant PrismRGB" />
-                  <Grid ColumnDefinitions="Auto,*,16,Auto,Auto" RowDefinitions="Auto">
-                    <TextBlock Text="Hôte" VerticalAlignment="Center" Margin="0,0,8,0" />
-                    <TextBox Grid.Column="1" Text="{Binding ServerHost}" />
-                    <TextBlock Grid.Column="3" Text="Port" VerticalAlignment="Center" Margin="0,0,8,0" />
-                    <NumericUpDown Grid.Column="4" Value="{Binding Port}" Minimum="1024" Maximum="65535" FormatString="0" Width="140" />
-                  </Grid>
-                  <WrapPanel>
-                    <Button Content="Appliquer la connexion" Command="{Binding ApplyConnectionCommand}" Classes="small accent" Margin="0,0,8,8" />
-                    <Button Content="Relancer le serveur OpenRGB" Command="{Binding RestartServerCommand}" Classes="small" Margin="0,0,8,8" />
-                    <Button Content="Relire le matériel" Command="{Binding RescanCommand}" Classes="small" Margin="0,0,8,8" />
-                  </WrapPanel>
-                </StackPanel>
-              </Border>
-
-              <Border Classes="card">
-                <StackPanel Spacing="10">
-                  <TextBlock Text="Logiciels RGB concurrents" Classes="h2" Margin="0" />
-                  <TextBlock Classes="muted" Text="Deux programmes qui pilotent le même contrôleur = couleurs qui sautent, appareils qui « disparaissent ». C'est la cause principale des bugs. Ferme-les ici puis désactive-les au démarrage (Gestionnaire des tâches > Démarrage, et services)." />
-                  <TextBlock Text="Aucun détecté." Classes="muted" IsVisible="{Binding !HasConflicts}" />
-                  <ItemsControl ItemsSource="{Binding Conflicts}">
-                    <ItemsControl.ItemTemplate>
-                      <DataTemplate x:DataType="vm:ConflictItem">
-                        <DockPanel Margin="0,0,0,6">
-                          <Button DockPanel.Dock="Right" Content="Fermer" Classes="small" Command="{Binding KillCommand}" />
-                          <TextBlock Text="{Binding Label}" VerticalAlignment="Center" Foreground="{StaticResource WarnBrush}" />
-                        </DockPanel>
-                      </DataTemplate>
-                    </ItemsControl.ItemTemplate>
-                  </ItemsControl>
-                  <Button Content="Vérifier à nouveau" Command="{Binding RefreshConflictsCommand}" Classes="small" />
-                </StackPanel>
-              </Border>
-
-              <Border Classes="card">
-                <StackPanel Spacing="12">
-                  <TextBlock Text="Général" Classes="h2" Margin="0" />
-                  <ToggleSwitch IsChecked="{Binding StartWithWindows}" IsEnabled="{Binding AutostartSupported}"
-                                OnContent="Démarrer avec Windows" OffContent="Démarrer avec Windows" />
-                  <ToggleSwitch IsChecked="{Binding StartMinimized}" OnContent="Démarrer réduit dans la zone de notification" OffContent="Démarrer réduit dans la zone de notification" />
-                  <ToggleSwitch IsChecked="{Binding MinimizeToTray}" OnContent="Fermer la fenêtre garde PrismRGB actif (zone de notification)" OffContent="Fermer la fenêtre garde PrismRGB actif (zone de notification)" />
-                  <StackPanel>
-                    <DockPanel>
-                      <TextBlock DockPanel.Dock="Right" Text="{Binding TargetFps, StringFormat={}{0} img/s}" Classes="muted" />
-                      <TextBlock Text="Fluidité des animations" />
-                    </DockPanel>
-                    <Slider Minimum="10" Maximum="60" Value="{Binding TargetFps}" TickFrequency="5" IsSnapToTickEnabled="True" />
-                    <TextBlock Classes="muted" Text="30 est un bon réglage. Baisse si la RAM ou la carte mère saccadent (leur bus SMBus est lent)." />
-                  </StackPanel>
-                  <ToggleSwitch IsChecked="{Binding DemoMode}" OnContent="Mode démo (appareils simulés, rien n'est envoyé au matériel)" OffContent="Mode démo (appareils simulés, rien n'est envoyé au matériel)" />
-                </StackPanel>
-              </Border>
-
-              <Border Classes="card">
-                <StackPanel Spacing="10">
-                  <TextBlock Text="Diagnostic" Classes="h2" Margin="0" />
-                  <TextBlock Classes="muted" Text="Crée un rapport sur le bureau : carte mère, RAM, GPU, tous les périphériques USB (identifiants VID:PID), ce qu'OpenRGB détecte et le journal. C'est ce qu'il faut pour ajouter des pilotes natifs pour ton matériel exact." />
-                  <WrapPanel>
-                    <Button Content="Créer le rapport de diagnostic" Command="{Binding DiagnosticCommand}" Classes="small accent" Margin="0,0,8,8" />
-                    <Button Content="Ouvrir le dossier de configuration" Command="{Binding OpenConfigFolderCommand}" Classes="small" Margin="0,0,8,8" />
-                  </WrapPanel>
-                  <TextBlock Text="{Binding ConfigPath}" Classes="muted" />
-                </StackPanel>
-              </Border>
+          <Border Classes="card">
+            <StackPanel Spacing="12">
+              <TextBlock Text="Matériel" Classes="h2" />
+              <ToggleSwitch IsChecked="{Binding AllowUntestedBoards}" OnContent="Autoriser les cartes MSI récentes non testées" OffContent="Autoriser les cartes MSI récentes non testées" />
+              <TextBlock Classes="muted" Text="Seules les cartes déjà validées par la communauté sont pilotées par défaut. Active cette option si ta carte B850/X870 n'est pas reconnue : la plupart partagent le même protocole." />
+              <ToggleSwitch IsChecked="{Binding DemoMode}" OnContent="Mode démo (appareils simulés, rien n'est envoyé au matériel)" OffContent="Mode démo (appareils simulés, rien n'est envoyé au matériel)" />
+              <Button Classes="small" Content="Ouvrir le dossier de configuration" Command="{Binding OpenConfigFolderCommand}" HorizontalAlignment="Left" />
             </StackPanel>
-          </ScrollViewer>
-        </TabItem>
-      </TabControl>
-    </DockPanel>
+          </Border>
+
+          <Border Classes="card">
+            <StackPanel Spacing="8">
+              <TextBlock Text="À propos" Classes="h2" />
+              <TextBlock Classes="muted" Text="PrismRGB - logiciel libre (GPL-2.0-or-later). Les protocoles des contrôleurs MSI Mystic Light sont issus du travail de rétro-ingénierie de la communauté open source." />
+              <TextBlock Text="{Binding ConfigPath}" Classes="muted" FontSize="11" />
+            </StackPanel>
+          </Border>
+        </StackPanel>
+      </ScrollViewer>
+
+      <!-- Notification -->
+      <Border IsVisible="{Binding Message, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"
+              HorizontalAlignment="Center" VerticalAlignment="Bottom" Margin="0,0,0,22" MaxWidth="720"
+              Background="#1D2130" BorderBrush="#34394A" BorderThickness="1" CornerRadius="14" Padding="18,10"
+              BoxShadow="0 10 30 0 #80000000">
+        <DockPanel>
+          <Button DockPanel.Dock="Right" Classes="small ghost" Content="OK" Command="{Binding DismissMessageCommand}" Margin="12,0,0,0" />
+          <TextBlock Text="{Binding Message}" VerticalAlignment="Center" TextWrapping="Wrap" />
+        </DockPanel>
+      </Border>
+    </Panel>
   </Grid>
 </Window>

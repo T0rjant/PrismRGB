@@ -4,17 +4,23 @@ namespace PrismRGB.Core.Config;
 
 public sealed class AppConfig
 {
-    public int Version { get; set; } = 1;
-    public OpenRgbSettings OpenRgb { get; set; } = new();
+    public int Version { get; set; } = 2;
     public int TargetFps { get; set; } = 30;
     public bool MinimizeToTray { get; set; } = true;
     public bool StartMinimized { get; set; }
     /// <summary>Appareils simulés : pour essayer les effets sans matériel (ou sur Mac).</summary>
     public bool DemoMode { get; set; }
+    /// <summary>Autorise le pilotage des cartes MSI dont le modèle n'est pas dans la liste testée.</summary>
+    public bool AllowUntestedBoards { get; set; }
     public string? ActiveProfile { get; set; }
     public List<Profile> Profiles { get; set; } = [];
-    /// <summary>Nombre de LEDs voulu pour les zones réglables (headers ARGB). Clé : <see cref="ZoneKeys.Zone"/>.</summary>
+    /// <summary>Nombre de LEDs branchées sur les zones réglables (connecteurs ARGB). Clé : <see cref="ZoneKeys.Zone"/>.</summary>
     public Dictionary<string, int> ZoneSizes { get; set; } = [];
+    /// <summary>Ce qui est branché sur chaque zone (bande, ventilos...), pour l'aperçu. Clé : <see cref="ZoneKeys.Zone"/>.</summary>
+    public Dictionary<string, ZoneLook> ZoneLooks { get; set; } = [];
+    /// <summary>Luminosité générale 0..100 appliquée par-dessus tous les effets.</summary>
+    public int MasterBrightness { get; set; } = 100;
+    public bool LightsOn { get; set; } = true;
 
     public Profile GetActiveProfile()
     {
@@ -27,16 +33,6 @@ public sealed class AppConfig
         ActiveProfile = p.Name;
         return p;
     }
-}
-
-public sealed class OpenRgbSettings
-{
-    public string Host { get; set; } = "127.0.0.1";
-    public int Port { get; set; } = 6742;
-    /// <summary>Lance OpenRGB en mode serveur invisible si aucun serveur ne répond.</summary>
-    public bool AutoLaunch { get; set; } = true;
-    public string? ExePath { get; set; }
-    public bool StopServerOnExit { get; set; } = true;
 }
 
 public sealed class Profile
@@ -91,6 +87,15 @@ public sealed class ZoneConfig
     public EffectSettings? Override { get; set; }
 
     public ZoneConfig Clone() => new() { Enabled = Enabled, Reverse = Reverse, Order = Order, Override = Override?.Clone() };
+}
+
+public enum LookKind { Auto, Strip, Fans }
+
+public sealed class ZoneLook
+{
+    public LookKind Kind { get; set; } = LookKind.Auto;
+    /// <summary>Nombre de ventilateurs chaînés sur la zone (les LEDs sont réparties entre eux).</summary>
+    public int Fans { get; set; } = 1;
 }
 
 public static class ZoneKeys

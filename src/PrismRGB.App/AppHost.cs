@@ -3,25 +3,31 @@ using PrismRGB.Core.Config;
 using PrismRGB.Core.Demo;
 using PrismRGB.Core.Devices;
 using PrismRGB.Core.Engine;
-using PrismRGB.Core.OpenRgb;
+using PrismRGB.Core.Hid;
+using PrismRGB.Core.Native;
+using PrismRGB.Core.Platform;
 
 namespace PrismRGB.App;
 
 /// <summary>
-/// Orchestration hors interface : configuration, backends, moteur d'effets, sauvegarde différée.
+/// Orchestration hors interface : configuration, pilotes natifs, moteur d'effets, sauvegarde différée.
 /// </summary>
 public sealed class AppHost : IAsyncDisposable
 {
     private readonly object _logLock = new();
     private readonly List<string> _log = [];
+    private readonly bool _forceDemo;
+    private readonly Lazy<SystemInfo> _sysInfo = new(SystemInfo.Query);
     private DispatcherTimer? _saveTimer;
     private IRgbBackend? _backend;
-    private readonly bool _forceDemo;
 
     public ConfigStore Store { get; } = new();
     public AppConfig Config { get; }
     public LightingEngine Engine { get; } = new();
+    public IHidProvider Hid { get; } = HidProviders.Default();
     public IRgbBackend? Backend => _backend;
+    public bool IsDemo => Config.DemoMode || _forceDemo;
+    public SystemInfo SysInfo => _sysInfo.Value;
 
     public event EventHandler? BackendChanged;
     public event EventHandler? DevicesChanged;
@@ -32,6 +38,13 @@ public sealed class AppHost : IAsyncDisposable
         Config = Store.Load();
         _forceDemo = forceDemo; // --demo : pour cette session seulement, non enregistré
         Engine.TargetFps = Config.TargetFps;
+        Engine.MasterBrightness = Config.MasterBrightness / 100.0;
+        Engine.LightsOn = Config.LightsOn;
+        Engine.ResumeDetected += (_, _) =>
+        {
+            Log("Sortie de veille détectée : reconfiguration des contrôleurs.");
+            _ = _backend?.ReapplyAsync();
+        };
     }
 
     public void Log(string line)
@@ -39,7 +52,7 @@ public sealed class AppHost : IAsyncDisposable
         lock (_logLock)
         {
             _log.Add($"{DateTime.Now:HH:mm:ss} {line}");
-            if (_log.Count > 300) _log.RemoveAt(0);
+            if (_log.Count > 400) _log.RemoveAt(0);
         }
     }
 
@@ -65,9 +78,9 @@ public sealed class AppHost : IAsyncDisposable
             await _backend.DisposeAsync();
         }
 
-        _backend = Config.DemoMode || _forceDemo
+        _backend = IsDemo
             ? new DemoBackend()
-            : new OpenRgbBackend(Config.OpenRgb, ZoneSizesSnapshot, Log);
+            : new NativeBackend(Hid, () => SysInfo, ZoneSizesSnapshot, () => Config.AllowUntestedBoards, Log);
         _backend.DevicesChanged += OnDevicesChanged;
         _backend.StateChanged += OnStateChanged;
         Engine.SetBackends([_backend]);
@@ -84,6 +97,18 @@ public sealed class AppHost : IAsyncDisposable
     {
         lock (Config.ZoneSizes) Config.ZoneSizes[key] = size;
         SaveSoon();
+    }
+
+    /// <summary>Inventaire complet du PC (lent : WMI + USB), à appeler hors du thread UI.</summary>
+    public (IReadOnlyList<ScanEntry> entries, string report) ScanHardware()
+    {
+        var sys = SysInfo;
+        IReadOnlyList<HidDeviceInfo> hid;
+        try { hid = Hid.Enumerate(); } catch { hid = []; }
+        var results = _backend is NativeBackend nb ? nb.DetectionResults : [];
+        var entries = HardwareScanner.Scan(sys, hid, results);
+        var report = HardwareScanner.BuildReport(sys, hid, entries, LogText());
+        return (entries, report);
     }
 
     private void OnDevicesChanged(object? sender, EventArgs e)

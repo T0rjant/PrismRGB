@@ -4,8 +4,8 @@
   <trustInfo xmlns="urn:schemas-microsoft-com:asm.v2">
     <security>
       <requestedPrivileges xmlns="urn:schemas-microsoft-com:asm.v3">
-        <!-- OpenRGB a besoin des droits admin pour la RAM et les contrôleurs SMBus de la carte mère. -->
-        <requestedExecutionLevel level="requireAdministrator" uiAccess="false" />
+        <!-- Les contrôleurs USB HID sont accessibles sans droits administrateur : pas d'invite UAC. -->
+        <requestedExecutionLevel level="asInvoker" uiAccess="false" />
       </requestedPrivileges>
     </security>
   </trustInfo>

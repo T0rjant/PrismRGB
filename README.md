@@ -1,66 +1,59 @@
 # PrismRGB
 
-Logiciel Windows pour piloter tout le RGB du PC (carte mère, RAM, GPU, water cooling, ventilos, bandes LED) depuis une seule interface, avec des effets animés synchronisés d'un appareil à l'autre.
+Logiciel Windows pour piloter le RGB du PC depuis une seule interface, sans aucun autre logiciel : PrismRGB parle directement aux contrôleurs USB.
 
-Le `.exe` prêt à lancer : `dist/PrismRGB/PrismRGB.exe` (Windows x64, autonome, aucun .NET à installer). Mode d'emploi : [LISEZ-MOI.txt](LISEZ-MOI.txt).
+**À lancer : [PrismRGB.exe](PrismRGB.exe)** (Windows x64, autonome, aucune installation, pas de droits administrateur). Mode d'emploi : [LISEZ-MOI.txt](LISEZ-MOI.txt).
+
+## Ce qui est piloté aujourd'hui
+
+| Matériel | État |
+|---|---|
+| Cartes mères MSI Mystic Light, protocole 185 (B550, B650, X670, Intel 400-700) | Natif, LED par LED |
+| Cartes mères MSI Mystic Light, protocole 761 (B850, X870, Z890) | Natif, LED par LED |
+| Tout ce qui est branché sur leurs connecteurs JRGB / JRAINBOW / JARGB / JAF (ventilos, bandes, water cooling) | Natif |
+| RAM RGB | Détectée ; nécessite un accès SMBus (pilote système) |
+| Carte graphique | Détectée (marque comprise) ; protocole I2C propre à chaque marque |
+| Contrôleurs USB (Corsair, NZXT, Lian Li, ASUS, Gigabyte...) | Détectés ; pilotes à ajouter selon le modèle |
+
+L'onglet **Matériel** de l'application montre exactement ce qui est présent dans le PC et produit un rapport (`PrismRGB-rapport.txt`) qui sert de base pour écrire les pilotes suivants.
 
 ## Effets
 
-Statique, Statique multicolore (dégradé ou blocs), Respiration, Flash/stroboscope, Arc-en-ciel, Cycle spectre, Vague, Météorite, Scanner gauche/droite (K2000), Étoiles, Feu, Police, Chenillard, Remplissage, Ondes.
+Statique, Statique multicolore, Respiration, Flash, Arc-en-ciel, Cycle spectre, Vague, Météorite, Scanner gauche/droite, Étoiles, Feu, Police, Chenillard, Remplissage, Ondes. Couleurs (jusqu'à 8, palettes), vitesse, luminosité, taille, direction (droite, gauche, centre vers bords, bords vers centre), transitions douces ou nettes.
 
-Pour chaque effet : couleurs (jusqu'à 8, palettes rapides), vitesse, luminosité, taille/longueur, direction (droite, gauche, centre vers bords, bords vers centre), transitions douces ou nettes.
+- **Traverser tout le PC** : les zones sont mises bout à bout (ordre réglable), l'effet passe d'un appareil à l'autre.
+- **Effet propre** par zone, zones désactivables ou inversées, luminosité générale, bouton marche/arrêt.
+- Aperçu en direct du PC (ventilos en anneaux, barrettes, carte graphique, bandes) et miniatures animées des effets.
 
-- **Synchronisé** : toutes les zones sont mises bout à bout dans l'ordre choisi (onglet Appareils), la vague ou la météorite traverse tout le PC.
-- **Séparé** : chaque zone joue l'effet de son côté.
-- **Effet propre** : une zone peut avoir son effet à elle (ex. RAM en arc-en-ciel, reste en statique).
-- Zones désactivables, inversables (ventilo monté à l'envers), headers ARGB redimensionnables.
-- Profils illimités, accessibles aussi depuis l'icône de la zone de notification.
+## Fiabilité
+
+- Un thread d'envoi par contrôleur, « la plus récente image gagne » : un contrôleur lent ne bloque rien.
+- Contrôleur perdu (veille, débranchement) : fermé puis redétecté automatiquement.
+- Sortie de veille détectée : les contrôleurs sont reconfigurés.
+- Seules les cartes validées par la communauté sont pilotées par défaut ; aucune écriture en mémoire flash.
+- Détection des logiciels RGB concurrents (cause n°1 des « ça marche un coup sur deux »).
 
 ## Architecture
 
 ```
-src/PrismRGB.Core     moteur, effets, protocole OpenRGB, config (aucune dépendance UI, testé)
-  Effects/            15 effets ; chaque effet dessine une bande "logique", la direction est appliquée après
-  Engine/             boucle d'animation à cadence fixe, envoi "seulement si changé" + maintien périodique
-  OpenRgb/            client du SDK OpenRGB (TCP 6742) + gestion du serveur
-  Demo/               appareils simulés
-  Platform/           logiciels concurrents, diagnostic matériel (WMI), démarrage auto
-src/PrismRGB.App      interface Avalonia (fenêtre, aperçu LED en direct, zone de notification)
-tests/PrismRGB.Tests  138 tests : protocole contre un faux serveur OpenRGB, effets, moteur, config
-tools/UiSnapshot      rend l'interface hors écran en PNG (vérification visuelle sans Windows)
+src/PrismRGB.Core
+  Hid/        accès HID natif Windows (setupapi + hid.dll), sans dépendance
+  Drivers/    pilotes natifs (MSI Mystic Light 185 et 761)
+  Native/     backend natif : détection, threads d'envoi, reprise sur erreur
+  Effects/    15 effets
+  Engine/     boucle d'animation (envoi si changement + maintien périodique)
+  Platform/   inventaire WMI, scanner matériel, logiciels concurrents, démarrage auto
+src/PrismRGB.App      interface Avalonia
+tests/PrismRGB.Tests  138 tests (octets envoyés aux cartes MSI simulées, effets, moteur, config)
+tools/UiSnapshot      captures de l'interface hors écran
 ```
-
-### Pourquoi OpenRGB en coulisses
-
-Écrire de zéro les pilotes de chaque contrôleur (SMBus de la RAM, Mystic Light, contrôleurs de ventilos, GPU...) demande de connaître le matériel exact et de le tester sur la machine. OpenRGB a déjà ces pilotes ; PrismRGB ne garde que cette couche, lancée en serveur invisible (`--server --noautoconnect`), et remplace tout le reste : effets, profils, interface et surtout la fiabilité :
-
-- lancement automatique du serveur, relance s'il plante ou se bloque ;
-- reconnexion automatique, relecture du matériel quand OpenRGB signale un changement ;
-- tailles des zones ARGB et mode « direct » réappliqués à chaque connexion ;
-- images renvoyées périodiquement (les contrôleurs qui se réinitialisent seuls reprennent leurs couleurs) ;
-- envoi sur un thread dédié, « la plus récente gagne » : un contrôleur lent (RAM) ne fait jamais saturer le reste ;
-- détection des logiciels RGB concurrents, première cause des « ça marche un coup sur deux ».
-
-L'interface `IRgbBackend` permet d'ajouter des pilotes natifs (HID direct, Windows Dynamic Lighting...) appareil par appareil. Le rapport de diagnostic (Paramètres) liste la carte mère, la RAM, le GPU et tous les VID:PID USB : c'est la base pour les écrire.
 
 ## Compiler
 
-Prérequis : SDK .NET 10.
+Prérequis : SDK .NET 10. `./build-windows.sh` (macOS/Linux) ou `build-windows.ps1` (Windows) : lance les tests, compile et place `PrismRGB.exe` à la racine.
 
-```bash
-./build-windows.sh
-```
+Essayer sans matériel : `dotnet run --project src/PrismRGB.App -- --demo`.
 
-Depuis Windows : `build-windows.ps1`. Les deux lancent les tests puis produisent `dist/PrismRGB/PrismRGB.exe`.
+## Licence et crédits
 
-Essayer l'interface sans matériel (Mac ou PC) : `dotnet run --project src/PrismRGB.App -- --demo`.
-
-## Fichiers
-
-- Configuration et profils : `%APPDATA%\PrismRGB\config.json`
-- Rapport de diagnostic : `PrismRGB-diagnostic.txt` sur le bureau
-
-## Crédits
-
-- Protocole : documentation du SDK OpenRGB (`Documentation/OpenRGBSDK.md`), recoupée avec openrgb-python.
-- Effet Feu : algorithme « Fire2012 » de Mark Kriegsman (FastLED).
+GPL-2.0-or-later. Les protocoles MSI Mystic Light sont portés depuis le travail de rétro-ingénierie de la communauté (projet OpenRGB, mystic-why, SignalRGB). Effet Feu : algorithme Fire2012 de Mark Kriegsman (FastLED).
