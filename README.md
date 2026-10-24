@@ -76,7 +76,7 @@ Pas de pub, pas de compte, pas d'envoi de données, aucune connexion internet. L
 
 Gratuit et open source ([GPL-3.0](LICENSE)). Toute version modifiée doit rester gratuite et publier son code : personne ne peut en faire un logiciel payant fermé. Le nom et le logo PrismRGB sont réservés au projet officiel ([TRADEMARK.md](TRADEMARK.md)).
 
-Créé par **[Torjant](https://github.com/T0rjant)**, avec l'aide de l'IA Claude. Merci à la communauté open source pour la documentation des protocoles RGB ([THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md)).
+Créé par **[Torjant](https://github.com/T0rjant)**. Merci à la communauté open source pour la documentation des protocoles RGB ([THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md)).
 
 ---
 
@@ -112,4 +112,4 @@ No ads, no account, no data collection, no internet connection. Fully open sourc
 
 ### License
 
-Free and open source ([GPL-3.0](LICENSE)): modified versions must stay free and open. The PrismRGB name and logo belong to the official project ([TRADEMARK.md](TRADEMARK.md)). Made by **[Torjant](https://github.com/T0rjant)** with help from Claude AI.
+Free and open source ([GPL-3.0](LICENSE)): modified versions must stay free and open. The PrismRGB name and logo belong to the official project ([TRADEMARK.md](TRADEMARK.md)). Made by **[Torjant](https://github.com/T0rjant)**.
