@@ -1,4 +1,11 @@
+// PrismRGB - contrôle RGB unifié pour Windows
+// Copyright (C) 2026 Torjant <https://github.com/Torjant/PrismRGB>
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 using System.Diagnostics;
+using System.Runtime;
+using System.Runtime.InteropServices;
+using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.Threading;
@@ -35,6 +42,51 @@ public partial class MainWindow : Window
             if (e.Key == Key.Enter && DataContext is MainViewModel vm) vm.CommitRenameCommand.Execute(null);
         };
     }
+
+    protected override void OnPropertyChanged(AvaloniaPropertyChangedEventArgs change)
+    {
+        base.OnPropertyChanged(change);
+        if (change.Property == WindowStateProperty || change.Property == IsVisibleProperty) UpdateBackground();
+    }
+
+    private bool _inBackground;
+
+    /// <summary>
+    /// Fenêtre cachée ou réduite (en jeu) : plus d'aperçu ni de rendu d'interface, cadence réduite,
+    /// priorité basse et mémoire rendue au système. Les effets continuent sur le matériel.
+    /// </summary>
+    private void UpdateBackground()
+    {
+        if (DataContext is not MainViewModel vm) return;
+        bool bg = !IsVisible || WindowState == WindowState.Minimized;
+        if (bg == _inBackground) return;
+        _inBackground = bg;
+        vm.InBackground = bg;
+        vm.Host.Engine.Background = bg;
+        if (bg) _frameTimer.Stop(); else _frameTimer.Start();
+
+        if (OperatingSystem.IsWindows())
+        {
+            try
+            {
+                using var me = Process.GetCurrentProcess();
+                me.PriorityClass = bg && vm.LowPriorityInBackground ? ProcessPriorityClass.BelowNormal : ProcessPriorityClass.Normal;
+            }
+            catch { }
+        }
+        if (bg)
+        {
+            GCSettings.LargeObjectHeapCompactionMode = GCLargeObjectHeapCompactionMode.CompactOnce;
+            GC.Collect(2, GCCollectionMode.Forced, blocking: true, compacting: true);
+            if (OperatingSystem.IsWindows())
+            {
+                try { SetProcessWorkingSetSize(Process.GetCurrentProcess().Handle, -1, -1); } catch { }
+            }
+        }
+    }
+
+    [DllImport("kernel32.dll")]
+    private static extern bool SetProcessWorkingSetSize(IntPtr process, nint min, nint max);
 
     protected override void OnDataContextChanged(EventArgs e)
     {

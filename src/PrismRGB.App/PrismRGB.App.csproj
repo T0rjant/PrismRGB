@@ -7,6 +7,12 @@
     <ApplicationIcon>Assets\icon.ico</ApplicationIcon>
     <AvaloniaUseCompiledBindingsByDefault>true</AvaloniaUseCompiledBindingsByDefault>
     <InvariantGlobalization>true</InvariantGlobalization>
+    <!-- Empreinte minimale en jeu : GC poste de travail sans thread de fond. -->
+    <ServerGarbageCollection>false</ServerGarbageCollection>
+    <ConcurrentGarbageCollection>false</ConcurrentGarbageCollection>
+    <TieredPGO>true</TieredPGO>
+    <AssemblyTitle>PrismRGB by Torjant</AssemblyTitle>
+    <Description>Contrôle RGB unifié pour PC Windows</Description>
   </PropertyGroup>
 
   <ItemGroup>

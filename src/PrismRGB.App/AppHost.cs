@@ -1,3 +1,7 @@
+// PrismRGB - contrôle RGB unifié pour Windows
+// Copyright (C) 2026 Torjant <https://github.com/Torjant/PrismRGB>
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 using Avalonia.Threading;
 using PrismRGB.Core.Config;
 using PrismRGB.Core.Demo;
@@ -38,6 +42,7 @@ public sealed class AppHost : IAsyncDisposable
         Config = Store.Load();
         _forceDemo = forceDemo; // --demo : pour cette session seulement, non enregistré
         Engine.TargetFps = Config.TargetFps;
+        Engine.BackgroundFps = Config.BackgroundFps;
         Engine.MasterBrightness = Config.MasterBrightness / 100.0;
         Engine.LightsOn = Config.LightsOn;
         Engine.ResumeDetected += (_, _) =>
@@ -80,7 +85,8 @@ public sealed class AppHost : IAsyncDisposable
 
         _backend = IsDemo
             ? new DemoBackend()
-            : new NativeBackend(Hid, () => SysInfo, ZoneSizesSnapshot, () => Config.AllowUntestedBoards, Log);
+            : new NativeBackend(Hid, () => SysInfo, ZoneSizesSnapshot, () => Config.AllowUntestedBoards, Log,
+                ramEnabled: () => Config.RamControl);
         _backend.DevicesChanged += OnDevicesChanged;
         _backend.StateChanged += OnStateChanged;
         Engine.SetBackends([_backend]);
@@ -105,10 +111,19 @@ public sealed class AppHost : IAsyncDisposable
         var sys = SysInfo;
         IReadOnlyList<HidDeviceInfo> hid;
         try { hid = Hid.Enumerate(); } catch { hid = []; }
-        var results = _backend is NativeBackend nb ? nb.DetectionResults : [];
-        var entries = HardwareScanner.Scan(sys, hid, results);
-        var report = HardwareScanner.BuildReport(sys, hid, entries, LogText());
+        var nb = _backend as NativeBackend;
+        var results = nb?.DetectionResults ?? [];
+        var ram = nb?.Ram;
+        var entries = HardwareScanner.Scan(sys, hid, results, ram);
+        var report = HardwareScanner.BuildReport(sys, hid, entries, LogText(), ram);
         return (entries, report);
+    }
+
+    public RamState Ram => (_backend as NativeBackend)?.Ram ?? RamState.Initial;
+
+    public void RescanRam()
+    {
+        if (_backend is NativeBackend nb) nb.RescanRam();
     }
 
     private void OnDevicesChanged(object? sender, EventArgs e)

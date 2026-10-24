@@ -1,3 +1,7 @@
+// PrismRGB - contrôle RGB unifié pour Windows
+// Copyright (C) 2026 Torjant <https://github.com/Torjant/PrismRGB>
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Controls.ApplicationLifetimes;
@@ -24,6 +28,13 @@ public partial class App : Application
         {
             _host = new AppHost(Program.ForceDemo);
             _vm = new MainViewModel(_host);
+            _vm.RestartElevatedRequested += (_, _) =>
+            {
+                if (Program.TryRelaunchElevated(Environment.GetCommandLineArgs().Skip(1))) Quit();
+                else _vm.Message = "Redémarrage en administrateur annulé.";
+            };
+            if (Program.ElevationDeclined)
+                _vm.Message = "Droits administrateur refusés : le RGB de la RAM ne sera pas piloté pendant cette session.";
             _vm.Start();
             _ = _host.StartAsync();
 
@@ -71,7 +82,7 @@ public partial class App : Application
     {
         _tray = new TrayIcon
         {
-            ToolTipText = "PrismRGB",
+            ToolTipText = $"PrismRGB by {Core.AppInfo.Author}",
             Icon = new WindowIcon(AssetLoader.Open(new Uri("avares://PrismRGB/Assets/icon.ico"))),
             IsVisible = true,
         };

@@ -1,3 +1,7 @@
+// PrismRGB - contrôle RGB unifié pour Windows
+// Copyright (C) 2026 Torjant <https://github.com/Torjant/PrismRGB>
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 using Avalonia;
 using Avalonia.Headless;
 using Avalonia.Threading;
@@ -61,10 +65,10 @@ Pump(300);
 vm.ScanEntries.Clear();
 foreach (var e in new[]
 {
-    new ScanEntry("Carte mère", "MSI MAG B650 TOMAHAWK WIFI (MS-7D75)", "Mystic Light : connecteurs RGB/ARGB (ventilos, bandes, water cooling branchés dessus)", ScanStatus.Controlled),
-    new ScanEntry("RAM", "DIMM A2 : Kingston KF560C36BBEAK2-32", "16 Go, 6000 MHz", ScanStatus.NeedsLowLevel, "Le RGB des barrettes passe par le bus SMBus de la carte mère."),
-    new ScanEntry("Carte graphique", "NVIDIA GeForce RTX 5070", "Modèle MSI", ScanStatus.NotYet, "Protocole propre à chaque marque, à ajouter selon le modèle."),
-    new ScanEntry("USB", "iCUE COMMANDER CORE", "Corsair  ·  1B1C:0C1C", ScanStatus.NotYet, "Contrôleur détecté. Son pilote peut être ajouté."),
+    new ScanEntry("Carte mère", "MSI MAG B650 TOMAHAWK WIFI (MS-7D75)", "MSI Mystic Light : connecteurs RGB/ARGB (ventilos, bandes, water cooling branchés dessus)", ScanStatus.Controlled),
+    new ScanEntry("RAM", "Kingston FURY DDR5 RGB", "1 contrôleur(s) RGB de RAM piloté(s) via SMBus AMD (PIIX4).", ScanStatus.Controlled),
+    new ScanEntry("Carte graphique", "NVIDIA GeForce RTX 5070", "Modèle MSI", ScanStatus.NotYet, "Le RGB des cartes graphiques passe par le bus I2C du pilote NVIDIA/AMD, avec un protocole propre à chaque marque."),
+    new ScanEntry("USB", "iCUE COMMANDER CORE", "Corsair  ·  1B1C:0C1C", ScanStatus.NotYet, "Contrôleur détecté. Son pilote peut être ajouté : envoie le rapport (bouton ci-dessus)."),
 })
     vm.ScanEntries.Add(new ScanEntryViewModel(e));
 Snap("5-materiel");

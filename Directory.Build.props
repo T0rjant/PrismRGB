@@ -4,8 +4,12 @@
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <LangVersion>latest</LangVersion>
-    <Version>1.0.0</Version>
-    <Company>PrismRGB</Company>
+    <Version>1.1.0</Version>
+    <Authors>Torjant</Authors>
+    <Company>Torjant</Company>
     <Product>PrismRGB</Product>
+    <Copyright>Copyright (C) 2026 Torjant - GPL-3.0-or-later</Copyright>
+    <RepositoryUrl>https://github.com/Torjant/PrismRGB</RepositoryUrl>
+    <PackageLicenseExpression>GPL-3.0-or-later</PackageLicenseExpression>
   </PropertyGroup>
 </Project>

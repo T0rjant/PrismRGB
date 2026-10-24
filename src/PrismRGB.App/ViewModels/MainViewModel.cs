@@ -1,3 +1,7 @@
+// PrismRGB - contrôle RGB unifié pour Windows
+// Copyright (C) 2026 Torjant <https://github.com/Torjant/PrismRGB>
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 using System.Collections.ObjectModel;
 using System.Diagnostics;
 using Avalonia.Media;
@@ -33,6 +37,9 @@ public sealed partial class MainViewModel : ObservableObject
         _startMinimized = cfg.StartMinimized;
         _demoMode = cfg.DemoMode;
         _allowUntestedBoards = cfg.AllowUntestedBoards;
+        _ramControl = cfg.RamControl;
+        _backgroundFps = cfg.BackgroundFps;
+        _lowPriorityInBackground = cfg.LowPriorityInBackground;
         _masterBrightness = cfg.MasterBrightness;
         _lightsOn = cfg.LightsOn;
         _startWithWindows = Autostart.IsEnabled();
@@ -88,6 +95,23 @@ public sealed partial class MainViewModel : ObservableObject
     [ObservableProperty] private bool _demoMode;
     [ObservableProperty] private bool _allowUntestedBoards;
     [ObservableProperty] private bool _startWithWindows;
+    [ObservableProperty] private bool _ramControl;
+    [ObservableProperty] private int _backgroundFps;
+    [ObservableProperty] private bool _lowPriorityInBackground;
+    [ObservableProperty] private string _ramStatusText = "";
+    [ObservableProperty] private bool _ramNeedsPawnIo;
+    [ObservableProperty] private bool _ramNeedsAdmin;
+
+    public bool IsElevated { get; } = SystemInfoHelpers.IsElevated();
+
+    /// <summary>Fenêtre cachée ou réduite : on évite tout travail inutile.</summary>
+    public bool InBackground { get; set; }
+    public string Author => Core.AppInfo.Author;
+    public string ByAuthor => $"by {Core.AppInfo.Author}";
+    public string GitHubUrl => Core.AppInfo.GitHubUrl;
+
+    /// <summary>Demande à l'application de se relancer en administrateur.</summary>
+    public event EventHandler? RestartElevatedRequested;
 
     public bool IsLightingPage => SelectedPage == 0;
     public bool IsDevicesPage => SelectedPage == 1;
@@ -99,7 +123,7 @@ public sealed partial class MainViewModel : ObservableObject
     public bool HasConflicts => Conflicts.Count > 0;
     public bool AutostartSupported => Autostart.IsSupported;
     public string ConfigPath => _host.Store.FilePath;
-    public string Version => $"v{typeof(MainViewModel).Assembly.GetName().Version?.ToString(3)}";
+    public string Version => $"v{Core.AppInfo.Version}";
     public string SelectedEffectName => Editor.SelectedEffect.Name;
     public string SelectedEffectDescription => Editor.SelectedEffect.Description;
     public string DeviceSummary
@@ -376,9 +400,38 @@ public sealed partial class MainViewModel : ObservableObject
 
     private void Tick()
     {
-        FpsText = $"{_host.Engine.MeasuredFps:0} img/s";
-        if (++_tick % 15 == 0) RefreshConflicts();
+        FpsText = _host.Engine.IsAnimating ? $"{_host.Engine.MeasuredFps:0} img/s" : "au repos";
+        RefreshRam();
+        if (++_tick % 15 == 0 && !InBackground) RefreshConflicts();
     }
+
+    private Core.Native.RamAccess _lastRamAccess = (Core.Native.RamAccess)(-1);
+
+    private void RefreshRam()
+    {
+        var ram = _host.Ram;
+        RamStatusText = ram.Message;
+        RamNeedsPawnIo = ram.Access == Core.Native.RamAccess.PawnIoMissing;
+        RamNeedsAdmin = RamControl && (ram.Access == Core.Native.RamAccess.NeedsAdmin || (!IsElevated && OperatingSystem.IsWindows()));
+        if (ram.Access != _lastRamAccess && _lastRamAccess != (Core.Native.RamAccess)(-1) && IsHardwarePage) _ = ScanHardware();
+        _lastRamAccess = ram.Access;
+    }
+
+    [RelayCommand]
+    private void InstallPawnIo() => Shell.Open(Core.AppInfo.PawnIoUrl);
+
+    [RelayCommand]
+    private void RestartAsAdmin() => RestartElevatedRequested?.Invoke(this, EventArgs.Empty);
+
+    [RelayCommand]
+    private void RescanRam()
+    {
+        _host.RescanRam();
+        Message = "Analyse des barrettes de RAM relancée.";
+    }
+
+    [RelayCommand]
+    private void OpenGitHub() => Shell.Open(Core.AppInfo.GitHubUrl);
 
     private void RefreshStatus()
     {
@@ -510,11 +563,38 @@ public sealed partial class MainViewModel : ObservableObject
         _ = _host.Backend?.RescanAsync();
     }
 
+    partial void OnRamControlChanged(bool value)
+    {
+        if (_loading) return;
+        _host.Config.RamControl = value;
+        _host.SaveNow();
+        if (value && OperatingSystem.IsWindows() && !IsElevated)
+            Message = "Le contrôle de la RAM demande les droits administrateur : clique sur « Redémarrer en administrateur ».";
+        _host.RescanRam();
+        RefreshRam();
+        if (StartWithWindows) OnStartWithWindowsChanged(true); // met à jour le mode de démarrage automatique
+    }
+
+    partial void OnBackgroundFpsChanged(int value)
+    {
+        if (_loading) return;
+        _host.Config.BackgroundFps = value;
+        _host.Engine.BackgroundFps = value;
+        _host.SaveSoon();
+    }
+
+    partial void OnLowPriorityInBackgroundChanged(bool value)
+    {
+        if (_loading) return;
+        _host.Config.LowPriorityInBackground = value;
+        _host.SaveSoon();
+    }
+
     partial void OnStartWithWindowsChanged(bool value)
     {
         if (_loading) return;
         var exe = Environment.ProcessPath ?? "";
-        bool ok = value ? Autostart.Enable(exe, out var err) : Autostart.Disable(out err);
+        bool ok = value ? Autostart.Enable(exe, elevated: RamControl && IsElevated, out var err) : Autostart.Disable(out err);
         Message = ok
             ? (value ? "PrismRGB démarrera avec Windows." : "Démarrage automatique désactivé.")
             : $"Échec : {err}";

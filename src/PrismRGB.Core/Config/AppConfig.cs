@@ -1,3 +1,7 @@
+// PrismRGB - contrôle RGB unifié pour Windows
+// Copyright (C) 2026 Torjant <https://github.com/Torjant/PrismRGB>
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 using PrismRGB.Core.Effects;
 
 namespace PrismRGB.Core.Config;
@@ -12,6 +16,12 @@ public sealed class AppConfig
     public bool DemoMode { get; set; }
     /// <summary>Autorise le pilotage des cartes MSI dont le modèle n'est pas dans la liste testée.</summary>
     public bool AllowUntestedBoards { get; set; }
+    /// <summary>Contrôle du RGB de la RAM (bus SMBus via le pilote PawnIO, droits administrateur requis).</summary>
+    public bool RamControl { get; set; }
+    /// <summary>Cadence des animations quand la fenêtre est réduite (en jeu).</summary>
+    public int BackgroundFps { get; set; } = 20;
+    /// <summary>Passe PrismRGB en priorité basse quand la fenêtre est réduite.</summary>
+    public bool LowPriorityInBackground { get; set; } = true;
     public string? ActiveProfile { get; set; }
     public List<Profile> Profiles { get; set; } = [];
     /// <summary>Nombre de LEDs branchées sur les zones réglables (connecteurs ARGB). Clé : <see cref="ZoneKeys.Zone"/>.</summary>

@@ -1,6 +1,11 @@
+// PrismRGB - contrôle RGB unifié pour Windows
+// Copyright (C) 2026 Torjant <https://github.com/Torjant/PrismRGB>
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 using System.Text;
 using PrismRGB.Core.Drivers.Msi;
 using PrismRGB.Core.Hid;
+using PrismRGB.Core.Smbus;
 
 namespace PrismRGB.Core.Platform;
 
@@ -49,48 +54,52 @@ public static class HardwareScanner
         [0x2433] = "Asetek (water cooling)",
     };
 
-    public static IReadOnlyList<ScanEntry> Scan(SystemInfo sys, IReadOnlyList<HidDeviceInfo> hid, IReadOnlyList<(string name, string? problem)> nativeResults)
+    public static IReadOnlyList<ScanEntry> Scan(SystemInfo sys, IReadOnlyList<HidDeviceInfo> hid,
+        IReadOnlyList<(string name, string? problem)> nativeResults, Native.RamState? ram = null)
     {
         var list = new List<ScanEntry>();
+        ram ??= Native.RamState.Initial;
 
-        // Carte mère
-        if (!string.IsNullOrWhiteSpace(sys.BoardProduct))
+        // Carte mère (toutes marques : le pilote qui l'a reconnue est indiqué)
+        string board = string.Join(" ", new[] { BrandOf(sys.BoardManufacturer), sys.BoardProduct }.Where(x => !string.IsNullOrWhiteSpace(x)));
+        var ok = nativeResults.Where(r => r.problem is null).ToList();
+        var ko = nativeResults.Where(r => r.problem is not null).ToList();
+        if (!string.IsNullOrWhiteSpace(board) || nativeResults.Count > 0)
         {
-            var msi = nativeResults.FirstOrDefault(r => r.name.StartsWith("MSI", StringComparison.OrdinalIgnoreCase));
-            if (sys.IsMsiBoard && msi.name is not null && msi.problem is null)
-                list.Add(new("Carte mère", sys.MsiBoardName, "Mystic Light : connecteurs RGB/ARGB (ventilos, bandes, water cooling branchés dessus)", ScanStatus.Controlled));
-            else if (sys.IsMsiBoard)
-                list.Add(new("Carte mère", sys.MsiBoardName, msi.problem ?? "Contrôleur Mystic Light introuvable sur l'USB.", ScanStatus.Problem,
-                    "Vérifie que Mystic Light est activé dans le BIOS (« EZ LED Control ») et qu'aucun autre logiciel RGB ne tourne."));
+            if (string.IsNullOrWhiteSpace(board)) board = "Carte mère";
+            if (ok.Count > 0)
+                list.Add(new("Carte mère", board, $"{string.Join(", ", ok.Select(r => r.name))} : connecteurs RGB/ARGB (ventilos, bandes, water cooling branchés dessus)", ScanStatus.Controlled));
+            else if (ko.Count > 0)
+                list.Add(new("Carte mère", board, ko[0].problem!, ScanStatus.Problem,
+                    "Vérifie que l'éclairage RGB est activé dans le BIOS et qu'aucun autre logiciel RGB ne tourne (voir Réglages)."));
+            else if (BrandOf(sys.BoardManufacturer) is "MSI" or "ASUS" or "ASRock" or "Gigabyte")
+                list.Add(new("Carte mère", board, "Aucun contrôleur RGB de cette carte trouvé sur l'USB.", ScanStatus.Problem,
+                    "Certaines cartes pilotent leur RGB par le bus SMBus ou un modèle de contrôleur pas encore pris en charge. Envoie le rapport pour l'ajouter."));
             else
-                list.Add(new("Carte mère", $"{sys.BoardManufacturer} {sys.BoardProduct}", "Fabricant non encore pris en charge.", ScanStatus.NotYet));
+                list.Add(new("Carte mère", board, "Fabricant pas encore pris en charge.", ScanStatus.NotYet));
         }
 
         // RAM
-        foreach (var m in sys.Ram)
-        {
-            string name = string.Join(" ", new[] { m.Manufacturer, m.PartNumber }.Where(s => !string.IsNullOrWhiteSpace(s)));
-            list.Add(new("RAM", $"{m.Slot} : {name}", $"{m.CapacityBytes / (1024 * 1024 * 1024)} Go, {m.SpeedMhz} MHz", ScanStatus.NeedsLowLevel,
-                "Le RGB des barrettes passe par le bus SMBus de la carte mère : il faut un petit pilote système signé pour y accéder. Prochaine étape, une fois le modèle exact connu."));
-        }
+        AddRam(list, sys, ram);
 
         // Carte graphique
         foreach (var g in sys.Gpus)
         {
             if (g.Name.Contains("Microsoft Basic", StringComparison.OrdinalIgnoreCase)) continue;
             list.Add(new("Carte graphique", g.Name, string.IsNullOrEmpty(g.SubsystemVendor) ? g.PnpId : $"Modèle {g.SubsystemVendor}", ScanStatus.NotYet,
-                "Le RGB des cartes graphiques se pilote via le bus I2C du pilote NVIDIA/AMD, avec un protocole propre à chaque marque. À ajouter selon le modèle."));
+                "Le RGB des cartes graphiques passe par le bus I2C du pilote NVIDIA/AMD, avec un protocole propre à chaque marque. À ajouter selon le modèle."));
         }
 
-        // Contrôleurs USB RGB connus (un par appareil physique)
+        // Contrôleurs USB RGB connus non pris en charge (un par appareil physique)
         foreach (var grp in hid.Where(d => RgbVendors.ContainsKey(d.VendorId)).GroupBy(d => (d.VendorId, d.ProductId)))
         {
             var d = grp.First();
-            if (MsiBoards.LooksLikeMysticLight(d)) continue; // déjà couvert par la ligne carte mère
+            if (MsiBoards.LooksLikeMysticLight(d)) continue;
+            if (grp.Any(x => Native.DriverRegistry.Hid.Any(dr => dr.IsCandidate(x)))) continue; // déjà couvert par un pilote
             string vendor = RgbVendors[d.VendorId];
             string name = string.IsNullOrWhiteSpace(d.Product) ? $"Appareil {vendor}" : d.Product;
             list.Add(new("USB", name, $"{vendor}  ·  {d.VidPid}", ScanStatus.NotYet,
-                "Contrôleur détecté. Son pilote peut être ajouté : envoie le rapport (bouton ci-dessous)."));
+                "Contrôleur détecté. Son pilote peut être ajouté : envoie le rapport (bouton ci-dessus)."));
         }
 
         if (list.Count == 0)
@@ -98,7 +107,47 @@ public static class HardwareScanner
         return list;
     }
 
-    public static string BuildReport(SystemInfo sys, IReadOnlyList<HidDeviceInfo> hid, IReadOnlyList<ScanEntry> entries, string log)
+    private static void AddRam(List<ScanEntry> list, SystemInfo sys, Native.RamState ram)
+    {
+        string Describe(RamModule m) => string.Join(" ", new[] { m.Manufacturer, m.PartNumber }.Where(x => !string.IsNullOrWhiteSpace(x)));
+        switch (ram.Access)
+        {
+            case Native.RamAccess.Ok:
+                foreach (var c in ram.Controlled) list.Add(new("RAM", c, ram.Message, ScanStatus.Controlled));
+                return;
+            case Native.RamAccess.NoRgb:
+                foreach (var m in sys.Ram) list.Add(new("RAM", $"{m.Slot} : {Describe(m)}", ram.Message, ScanStatus.Info,
+                    "Si tes barrettes ont du RGB, envoie le rapport : leur contrôleur pourra être ajouté."));
+                return;
+            case Native.RamAccess.BusError:
+                list.Add(new("RAM", "Bus SMBus", ram.Message, ScanStatus.Problem));
+                return;
+        }
+        string advice = ram.Access switch
+        {
+            Native.RamAccess.PawnIoMissing => "Installe le pilote gratuit PawnIO (bouton dans Réglages > RAM), puis relance l'analyse.",
+            Native.RamAccess.NeedsAdmin => "Clique sur « Redémarrer en administrateur » dans Réglages > RAM.",
+            Native.RamAccess.Unsupported => ram.Message,
+            Native.RamAccess.Scanning => "Analyse en cours...",
+            _ => "Active « Contrôle du RGB de la RAM » dans Réglages : PrismRGB lira tes barrettes et pilotera leur RGB.",
+        };
+        foreach (var m in sys.Ram)
+            list.Add(new("RAM", $"{m.Slot} : {Describe(m)}", $"{m.CapacityBytes / (1024 * 1024 * 1024)} Go, {m.SpeedMhz} MHz", ScanStatus.NeedsLowLevel, advice));
+        if (sys.Ram.Count == 0 && ram.Access != Native.RamAccess.Disabled)
+            list.Add(new("RAM", "Barrettes", ram.Message, ScanStatus.NeedsLowLevel, advice));
+    }
+
+    public static string BrandOf(string manufacturer)
+    {
+        string m = manufacturer.ToLowerInvariant();
+        if (m.Contains("micro-star") || m.StartsWith("msi")) return "MSI";
+        if (m.Contains("asustek") || m.StartsWith("asus")) return "ASUS";
+        if (m.Contains("asrock")) return "ASRock";
+        if (m.Contains("gigabyte")) return "Gigabyte";
+        return manufacturer.Trim();
+    }
+
+    public static string BuildReport(SystemInfo sys, IReadOnlyList<HidDeviceInfo> hid, IReadOnlyList<ScanEntry> entries, string log, Native.RamState? ram = null)
     {
         var sb = new StringBuilder();
         sb.AppendLine("=== PrismRGB - rapport matériel ===");
@@ -111,6 +160,13 @@ public static class HardwareScanner
         sb.AppendLine();
         sb.AppendLine("--- Résultat du scan ---");
         foreach (var e in entries) sb.AppendLine($"[{e.Status}] {e.Category} | {e.Name} | {e.Detail}");
+        if (ram is not null)
+        {
+            sb.AppendLine();
+            sb.AppendLine($"--- RAM (SMBus) : {ram.Access} - {ram.Message} ---");
+            foreach (var slot in ram.Slots)
+                sb.AppendLine($"Slot {slot.Index} (0x{slot.SpdAddress:X2}) : {slot.Type} | JEDEC {slot.JedecId:X4} ({slot.Vendor}) | {slot.PartNumber}");
+        }
         sb.AppendLine();
         sb.AppendLine("--- Périphériques HID (VID:PID page/usage | fabricant | produit | tailles in/out/feature) ---");
         foreach (var d in hid.OrderBy(d => d.VendorId).ThenBy(d => d.ProductId))

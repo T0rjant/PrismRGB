@@ -1,14 +1,20 @@
+// PrismRGB - contrôle RGB unifié pour Windows
+// Copyright (C) 2026 Torjant <https://github.com/Torjant/PrismRGB>
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 namespace PrismRGB.Core.Effects;
 
 /// <summary>Une couleur fixe.</summary>
 public sealed class StaticEffect : Effect
 {
+    public override bool IsAnimated => false;
     protected override void RenderLogical(Span<Rgb> leds, in EffectContext ctx) => leds.Fill(ctx.Color(0));
 }
 
 /// <summary>Plusieurs couleurs fixes : dégradé (doux) ou blocs nets.</summary>
 public sealed class MultiStaticEffect : Effect
 {
+    public override bool IsAnimated => false;
     protected override void RenderLogical(Span<Rgb> leds, in EffectContext ctx)
     {
         var c = ctx.Colors;

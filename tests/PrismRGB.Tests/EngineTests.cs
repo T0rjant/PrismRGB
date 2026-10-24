@@ -1,3 +1,7 @@
+// PrismRGB - contrôle RGB unifié pour Windows
+// Copyright (C) 2026 Torjant <https://github.com/Torjant/PrismRGB>
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 using PrismRGB.Core;
 using PrismRGB.Core.Config;
 using PrismRGB.Core.Demo;
@@ -219,5 +223,53 @@ public class EngineTests
         public Task ReapplyAsync() => Task.CompletedTask;
         public Task ResizeZoneAsync(RgbDevice device, int zoneIndex, int ledCount) => Task.CompletedTask;
         public ValueTask DisposeAsync() => ValueTask.CompletedTask;
+    }
+}
+
+public class EnginePerformanceTests
+{
+    [Fact]
+    public async Task SteadyState_AllocatesNothingWithoutPreview()
+    {
+        var demo = new DemoBackend();
+        await demo.StartAsync();
+        var engine = new LightingEngine { Background = true }; // fenêtre réduite : pas d'aperçu
+        engine.SetBackends([demo]);
+        engine.SetProfile(new Profile { Global = new EffectSettings { Effect = "meteor" } });
+        for (int i = 0; i < 50; i++) engine.RenderFrame(i / 30.0, 1 / 30.0);   // préchauffage
+
+        long before = GC.GetAllocatedBytesForCurrentThread();
+        for (int i = 50; i < 350; i++) engine.RenderFrame(i / 30.0, 1 / 30.0);
+        long allocated = GC.GetAllocatedBytesForCurrentThread() - before;
+        Assert.True(allocated < 4096, $"{allocated} octets alloués pour 300 images");
+    }
+
+    [Fact]
+    public async Task StaticEffect_LetsEngineSleep()
+    {
+        var demo = new DemoBackend();
+        await demo.StartAsync();
+        var engine = new LightingEngine();
+        engine.SetBackends([demo]);
+        engine.SetProfile(new Profile { Global = new EffectSettings { Effect = "static" } });
+        Assert.False(engine.RenderFrame(0, 0.03));
+        engine.SetProfile(new Profile { Global = new EffectSettings { Effect = "rainbow" } });
+        Assert.True(engine.RenderFrame(0.03, 0.03));
+        engine.LightsOn = false;
+        Assert.False(engine.RenderFrame(0.06, 0.03));                 // tout éteint : rien à animer
+    }
+
+    [Fact]
+    public async Task IdleEngineThread_UsesAlmostNoFrames()
+    {
+        var demo = new DemoBackend();
+        await demo.StartAsync();
+        using var engine = new LightingEngine { TargetFps = 60 };
+        engine.SetBackends([demo]);
+        engine.SetProfile(new Profile { Global = new EffectSettings { Effect = "static" } });
+        engine.Start();
+        await Task.Delay(700);
+        Assert.False(engine.IsAnimating);
+        Assert.True(engine.MeasuredFps < 5, $"{engine.MeasuredFps} img/s au repos");
     }
 }

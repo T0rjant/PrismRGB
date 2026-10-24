@@ -1,3 +1,7 @@
+// PrismRGB - contrôle RGB unifié pour Windows
+// Copyright (C) 2026 Torjant <https://github.com/Torjant/PrismRGB>
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 namespace PrismRGB.Core.Effects;
 
 public readonly struct EffectContext
@@ -54,6 +58,9 @@ public readonly struct EffectContext
 public abstract class Effect
 {
     private Rgb[] _logical = [];
+
+    /// <summary>false pour les effets fixes : le moteur peut alors dormir entre deux renvois de maintien.</summary>
+    public virtual bool IsAnimated => true;
 
     public void Render(Span<Rgb> leds, in EffectContext ctx)
     {

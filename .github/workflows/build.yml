@@ -1,0 +1,70 @@
+# Compile, teste et publie PrismRGB.exe depuis les sources.
+# Chaque tag "v*" crée une release GitHub avec l'exécutable, son empreinte SHA-256
+# et une attestation de provenance (preuve que l'exe vient bien de ce code).
+name: Build
+
+on:
+  push:
+    branches: [main]
+    tags: ["v*"]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: windows-latest
+    permissions:
+      contents: read
+      id-token: write
+      attestations: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          global-json-file: global.json
+
+      - name: Tests
+        run: dotnet test tests/PrismRGB.Tests -c Release
+
+      - name: Publish PrismRGB.exe
+        run: >
+          dotnet publish src/PrismRGB.App -c Release -r win-x64 --self-contained true
+          -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true
+          -p:EnableCompressionInSingleFile=true -p:DebugType=none -o dist
+
+      - name: SHA-256
+        shell: pwsh
+        run: (Get-FileHash dist/PrismRGB.exe -Algorithm SHA256).Hash.ToLower() + "  PrismRGB.exe" | Out-File dist/PrismRGB.exe.sha256 -Encoding ascii
+
+      - name: Attestation de provenance
+        if: github.event_name != 'pull_request'
+        uses: actions/attest-build-provenance@v1
+        with:
+          subject-path: dist/PrismRGB.exe
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: PrismRGB
+          path: |
+            dist/PrismRGB.exe
+            dist/PrismRGB.exe.sha256
+
+  release:
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: PrismRGB
+          path: dist
+      - uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            dist/PrismRGB.exe
+            dist/PrismRGB.exe.sha256

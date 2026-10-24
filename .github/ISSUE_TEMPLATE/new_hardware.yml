@@ -1,0 +1,23 @@
+name: Nouveau matériel / New hardware
+description: Un appareil RGB n'est pas reconnu / An RGB device is not recognized
+labels: [matériel]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Dans PrismRGB : onglet **Matériel** > **Enregistrer le rapport**, puis joignez `PrismRGB-rapport.txt` ci-dessous.
+        In PrismRGB: **Hardware** tab > **Save report**, then attach `PrismRGB-rapport.txt` below.
+  - type: input
+    id: device
+    attributes:
+      label: Appareil / Device
+      placeholder: "ex. RAM G.Skill Trident Z5 RGB, carte ASUS ROG STRIX B650E-F"
+    validations:
+      required: true
+  - type: textarea
+    id: report
+    attributes:
+      label: Rapport PrismRGB / PrismRGB report
+      description: Glissez le fichier ici ou collez son contenu / Drop the file here or paste its content
+    validations:
+      required: true

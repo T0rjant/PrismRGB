@@ -6,6 +6,11 @@
     <PackageReference Include="System.Management" Version="10.0.13" />
   </ItemGroup>
   <ItemGroup>
+    <!-- Modules officiels signés PawnIO (LGPL-2.1) : accès SMBus pour la RAM. -->
+    <EmbeddedResource Include="Smbus\Modules\*.bin" />
+    <None Include="Smbus\Modules\COPYING.LGPL-2.1" CopyToOutputDirectory="Never" />
+  </ItemGroup>
+  <ItemGroup>
     <InternalsVisibleTo Include="PrismRGB.Tests" />
   </ItemGroup>
 </Project>

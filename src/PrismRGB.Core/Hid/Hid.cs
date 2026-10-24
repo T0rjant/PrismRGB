@@ -1,3 +1,7 @@
+// PrismRGB - contrôle RGB unifié pour Windows
+// Copyright (C) 2026 Torjant <https://github.com/Torjant/PrismRGB>
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 namespace PrismRGB.Core.Hid;
 
 /// <summary>Description d'une collection HID (un périphérique USB peut en exposer plusieurs).</summary>
@@ -29,6 +33,15 @@ public interface IHidDevice : IDisposable
 
     /// <summary>Envoie un "feature report" (data[0] = identifiant). Complété par des zéros si nécessaire.</summary>
     bool SetFeature(ReadOnlySpan<byte> data);
+
+    /// <summary>Envoie un "output report" (data[0] = identifiant, 0 si aucun). Complété par des zéros.</summary>
+    bool Write(ReadOnlySpan<byte> data);
+
+    /// <summary>
+    /// Lit un "input report", comme hidapi : identifiant en buffer[0], sauf s'il vaut 0 (alors retiré).
+    /// Retourne le nombre d'octets lus, 0 si le délai est dépassé, -1 en cas d'erreur.
+    /// </summary>
+    int Read(byte[] buffer, int timeoutMs);
 }
 
 public interface IHidProvider

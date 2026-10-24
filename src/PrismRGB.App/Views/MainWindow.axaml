@@ -23,6 +23,9 @@
         <StackPanel Orientation="Horizontal" Spacing="11" VerticalAlignment="Center">
           <Image Source="/Assets/logo.png" Width="28" Height="28" />
           <TextBlock Text="PrismRGB" FontSize="17" FontWeight="Bold" VerticalAlignment="Center" />
+          <Button Classes="byline" Command="{Binding OpenGitHubCommand}" ToolTip.Tip="{Binding GitHubUrl}" VerticalAlignment="Center" Margin="-4,3,0,0">
+            <TextBlock Text="{Binding ByAuthor}" FontSize="11.5" />
+          </Button>
         </StackPanel>
 
         <Border Grid.Column="1" Margin="28,0,0,0" Padding="12,6" CornerRadius="14" Background="#151821"
@@ -54,7 +57,12 @@
     <!-- ===================== Rail de navigation ===================== -->
     <Border Grid.Row="1" Background="{StaticResource RailBrush}" BorderBrush="{StaticResource LineBrush}" BorderThickness="0,0,1,0">
       <DockPanel Margin="10,16">
-        <TextBlock DockPanel.Dock="Bottom" Text="{Binding Version}" FontSize="10.5" Foreground="{StaticResource DimBrush}" HorizontalAlignment="Center" />
+        <StackPanel DockPanel.Dock="Bottom" Spacing="1" HorizontalAlignment="Center">
+          <TextBlock Text="{Binding Version}" FontSize="10.5" Foreground="{StaticResource DimBrush}" HorizontalAlignment="Center" />
+          <Button Classes="byline" Command="{Binding OpenGitHubCommand}" ToolTip.Tip="{Binding GitHubUrl}" HorizontalAlignment="Center">
+            <TextBlock Text="{Binding ByAuthor}" FontSize="10.5" />
+          </Button>
+        </StackPanel>
         <ListBox Classes="nav" ItemsSource="{Binding Nav}" SelectedIndex="{Binding SelectedPage}">
           <ListBox.ItemTemplate>
             <DataTemplate x:DataType="vm:NavItem">
@@ -478,6 +486,35 @@
 
           <Border Classes="card">
             <StackPanel Spacing="12">
+              <TextBlock Text="RAM (barrettes RGB)" Classes="h2" />
+              <ToggleSwitch IsChecked="{Binding RamControl}" OnContent="Contrôle du RGB de la RAM" OffContent="Contrôle du RGB de la RAM" />
+              <TextBlock Classes="muted" Text="Le RGB des barrettes passe par le bus SMBus de la carte mère. PrismRGB y accède via PawnIO, un pilote gratuit, open source et signé (utilisé aussi par des outils de monitoring reconnus), avec les droits administrateur. Seules les puces RGB connues sont pilotées ; la mémoire de configuration de la RAM est protégée en écriture par PrismRGB." />
+              <Border Background="#14171E" CornerRadius="10" Padding="12,8" IsVisible="{Binding RamControl}">
+                <TextBlock Text="{Binding RamStatusText}" TextWrapping="Wrap" FontSize="12.5" />
+              </Border>
+              <WrapPanel>
+                <Button Classes="small accent" Content="Installer PawnIO (site officiel)" Command="{Binding InstallPawnIoCommand}" IsVisible="{Binding RamNeedsPawnIo}" Margin="0,0,8,8" />
+                <Button Classes="small accent" Content="Redémarrer en administrateur" Command="{Binding RestartAsAdminCommand}" IsVisible="{Binding RamNeedsAdmin}" Margin="0,0,8,8" />
+                <Button Classes="small" Content="Relancer l'analyse de la RAM" Command="{Binding RescanRamCommand}" IsVisible="{Binding RamControl}" Margin="0,0,8,8" />
+              </WrapPanel>
+            </StackPanel>
+          </Border>
+
+          <Border Classes="card">
+            <StackPanel Spacing="12">
+              <TextBlock Text="Performances en jeu" Classes="h2" />
+              <TextBlock Classes="muted" Text="Fenêtre réduite ou fermée dans la zone de notification : plus d'aperçu ni de rendu d'interface, mémoire rendue au système, et les effets fixes ne consomment rien (le moteur dort entre deux rafraîchissements)." />
+              <DockPanel>
+                <TextBlock DockPanel.Dock="Right" Text="{Binding BackgroundFps, StringFormat={}{0} img/s}" Foreground="{StaticResource MutedBrush}" />
+                <TextBlock Text="Fluidité quand PrismRGB est réduit" FontWeight="SemiBold" />
+              </DockPanel>
+              <Slider Minimum="5" Maximum="60" Value="{Binding BackgroundFps}" TickFrequency="5" IsSnapToTickEnabled="True" />
+              <ToggleSwitch IsChecked="{Binding LowPriorityInBackground}" OnContent="Priorité basse quand PrismRGB est réduit (les jeux passent avant)" OffContent="Priorité basse quand PrismRGB est réduit (les jeux passent avant)" />
+            </StackPanel>
+          </Border>
+
+          <Border Classes="card">
+            <StackPanel Spacing="12">
               <TextBlock Text="Logiciels RGB concurrents" Classes="h2" />
               <TextBlock Classes="muted" Text="Deux logiciels qui écrivent sur le même contrôleur = couleurs qui sautent et effets qui « bugent ». Ferme les logiciels des constructeurs (MSI Center, iCUE, SignalRGB...) et retire-les du démarrage." />
               <TextBlock Text="Aucun détecté, parfait." Foreground="#2FD27A" FontSize="13" IsVisible="{Binding !HasConflicts}" />
@@ -510,7 +547,22 @@
           <Border Classes="card">
             <StackPanel Spacing="8">
               <TextBlock Text="À propos" Classes="h2" />
-              <TextBlock Classes="muted" Text="PrismRGB - logiciel libre (GPL-2.0-or-later). Les protocoles des contrôleurs MSI Mystic Light sont issus du travail de rétro-ingénierie de la communauté open source." />
+              <StackPanel Orientation="Horizontal" Spacing="10">
+                <Image Source="/Assets/logo.png" Width="40" Height="40" />
+                <StackPanel VerticalAlignment="Center">
+                  <StackPanel Orientation="Horizontal" Spacing="6">
+                    <TextBlock Text="PrismRGB" FontSize="16" FontWeight="Bold" />
+                    <TextBlock Text="{Binding Version}" Classes="muted" VerticalAlignment="Bottom" Margin="0,0,0,2" />
+                  </StackPanel>
+                  <Button Classes="byline" Command="{Binding OpenGitHubCommand}" Margin="-6,0,0,0">
+                    <TextBlock Text="{Binding ByAuthor}" FontSize="13" />
+                  </Button>
+                </StackPanel>
+              </StackPanel>
+              <TextBlock Classes="muted" Text="Logiciel libre sous licence GPL-3.0-or-later : gratuit, code source ouvert, et toute version modifiée doit rester libre et publier son code. Les protocoles des contrôleurs sont issus du travail de rétro-ingénierie de la communauté open source (OpenRGB, mystic-why, SignalRGB, PawnIO)." />
+              <WrapPanel>
+                <Button Classes="small accent" Content="Voir le projet sur GitHub" Command="{Binding OpenGitHubCommand}" Margin="0,0,8,8" />
+              </WrapPanel>
               <TextBlock Text="{Binding ConfigPath}" Classes="muted" FontSize="11" />
             </StackPanel>
           </Border>

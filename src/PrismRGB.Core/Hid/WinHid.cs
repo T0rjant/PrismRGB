@@ -1,3 +1,7 @@
+// PrismRGB - contrôle RGB unifié pour Windows
+// Copyright (C) 2026 Torjant <https://github.com/Torjant/PrismRGB>
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 using System.ComponentModel;
 using System.Runtime.InteropServices;
 using System.Runtime.Versioning;
@@ -105,8 +109,9 @@ public sealed class WinHidProvider : IHidProvider
 
     public IHidDevice? Open(HidDeviceInfo info)
     {
+        // Mode "overlapped" (comme hidapi) : permet des lectures avec délai maximal, sans bloquer un thread.
         var h = Native.CreateFileW(info.Path, Native.GENERIC_READ | Native.GENERIC_WRITE,
-            Native.FILE_SHARE_READ | Native.FILE_SHARE_WRITE, IntPtr.Zero, Native.OPEN_EXISTING, 0, IntPtr.Zero);
+            Native.FILE_SHARE_READ | Native.FILE_SHARE_WRITE, IntPtr.Zero, Native.OPEN_EXISTING, Native.FILE_FLAG_OVERLAPPED, IntPtr.Zero);
         if (h.IsInvalid)
         {
             h.Dispose();
@@ -117,8 +122,12 @@ public sealed class WinHidProvider : IHidProvider
 
     private sealed class WinHidDevice : IHidDevice
     {
+        private const int OverlappedSize = 32;
         private readonly SafeFileHandle _h;
         private readonly object _lock = new();
+        private readonly ManualResetEvent _event = new(false);
+        private readonly IntPtr _ov = Marshal.AllocHGlobal(OverlappedSize);
+        private bool _disposed;
 
         public WinHidDevice(HidDeviceInfo info, SafeFileHandle h)
         {
@@ -128,14 +137,44 @@ public sealed class WinHidProvider : IHidProvider
 
         public HidDeviceInfo Info { get; }
 
+        /// <summary>Lance une E/S asynchrone et attend sa fin (ou l'annule après le délai).</summary>
+        private int Io(byte[] buffer, Func<IntPtr, IntPtr, bool> start, int timeoutMs)
+        {
+            var pin = GCHandle.Alloc(buffer, GCHandleType.Pinned);
+            try
+            {
+                for (int i = 0; i < OverlappedSize; i++) Marshal.WriteByte(_ov, i, 0);
+                _event.Reset();
+                Marshal.WriteIntPtr(_ov, 2 * IntPtr.Size + 8, _event.SafeWaitHandle.DangerousGetHandle()); // OVERLAPPED.hEvent
+                if (!start(pin.AddrOfPinnedObject(), _ov))
+                {
+                    int err = Marshal.GetLastWin32Error();
+                    if (err != 997) // ERROR_IO_PENDING
+                    {
+                        if (err is 1167 or 6 or 22) throw new IOException($"HID déconnecté ({new Win32Exception(err).Message})");
+                        return -1;
+                    }
+                    if (!_event.WaitOne(timeoutMs))
+                    {
+                        Native.CancelIoEx(_h, _ov);
+                        Native.GetOverlappedResult(_h, _ov, out _, true);
+                        return 0;
+                    }
+                }
+                return Native.GetOverlappedResult(_h, _ov, out uint done, false) ? (int)done : -1;
+            }
+            finally
+            {
+                pin.Free();
+            }
+        }
+
         public int GetFeature(byte[] buffer, int length)
         {
             lock (_lock)
             {
                 // IOCTL direct (comme hidapi) : contrairement à HidD_GetFeature, renvoie la taille réelle du report.
-                if (!Native.DeviceIoControl(_h, Native.IOCTL_HID_GET_FEATURE, buffer, (uint)length, buffer, (uint)length, out uint returned, IntPtr.Zero))
-                    return -1;
-                return (int)returned;
+                return Io(buffer, (p, ov) => Native.DeviceIoControl(_h, Native.IOCTL_HID_GET_FEATURE, p, (uint)length, p, (uint)length, IntPtr.Zero, ov), 1000);
             }
         }
 
@@ -154,14 +193,49 @@ public sealed class WinHidProvider : IHidProvider
             }
         }
 
-        public void Dispose() => _h.Dispose();
+        public bool Write(ReadOnlySpan<byte> data)
+        {
+            lock (_lock)
+            {
+                var buf = new byte[Math.Max(data.Length, Info.OutputReportLength)];
+                data.CopyTo(buf);
+                return Io(buf, (p, ov) => Native.WriteFile(_h, p, (uint)buf.Length, IntPtr.Zero, ov), 1000) > 0;
+            }
+        }
+
+        public int Read(byte[] buffer, int timeoutMs)
+        {
+            lock (_lock)
+            {
+                var buf = new byte[Math.Max(Info.InputReportLength, 1)];
+                int n = Io(buf, (p, ov) => Native.ReadFile(_h, p, (uint)buf.Length, IntPtr.Zero, ov), timeoutMs);
+                if (n <= 0) return n;
+                // Comme hidapi : pour un appareil sans identifiant de report (0), l'octet d'identifiant est retiré.
+                int skip = buf[0] == 0 ? 1 : 0;
+                int count = Math.Min(n - skip, buffer.Length);
+                Array.Copy(buf, skip, buffer, 0, count);
+                return count;
+            }
+        }
+
+        public void Dispose()
+        {
+            lock (_lock)
+            {
+                if (_disposed) return;
+                _disposed = true;
+                _h.Dispose();
+                _event.Dispose();
+                Marshal.FreeHGlobal(_ov);
+            }
+        }
     }
 
     private static class Native
     {
         public const uint DIGCF_PRESENT = 0x2, DIGCF_DEVICEINTERFACE = 0x10;
         public const uint GENERIC_READ = 0x80000000, GENERIC_WRITE = 0x40000000;
-        public const uint FILE_SHARE_READ = 1, FILE_SHARE_WRITE = 2, OPEN_EXISTING = 3;
+        public const uint FILE_SHARE_READ = 1, FILE_SHARE_WRITE = 2, OPEN_EXISTING = 3, FILE_FLAG_OVERLAPPED = 0x40000000;
         public const int HIDP_STATUS_SUCCESS = 0x00110000;
         // CTL_CODE(FILE_DEVICE_KEYBOARD, 100, METHOD_OUT_DIRECT, FILE_ANY_ACCESS)
         public const uint IOCTL_HID_GET_FEATURE = 0x000B0192;
@@ -218,7 +292,23 @@ public sealed class WinHidProvider : IHidProvider
 
         [DllImport("kernel32.dll", SetLastError = true)]
         [return: MarshalAs(UnmanagedType.Bool)]
-        public static extern bool DeviceIoControl(SafeFileHandle h, uint code, byte[] inBuf, uint inLen, byte[] outBuf, uint outLen, out uint returned, IntPtr overlapped);
+        public static extern bool DeviceIoControl(SafeFileHandle h, uint code, IntPtr inBuf, uint inLen, IntPtr outBuf, uint outLen, IntPtr returned, IntPtr overlapped);
+
+        [DllImport("kernel32.dll", SetLastError = true)]
+        [return: MarshalAs(UnmanagedType.Bool)]
+        public static extern bool ReadFile(SafeFileHandle h, IntPtr buffer, uint length, IntPtr read, IntPtr overlapped);
+
+        [DllImport("kernel32.dll", SetLastError = true)]
+        [return: MarshalAs(UnmanagedType.Bool)]
+        public static extern bool WriteFile(SafeFileHandle h, IntPtr buffer, uint length, IntPtr written, IntPtr overlapped);
+
+        [DllImport("kernel32.dll", SetLastError = true)]
+        [return: MarshalAs(UnmanagedType.Bool)]
+        public static extern bool GetOverlappedResult(SafeFileHandle h, IntPtr overlapped, out uint transferred, [MarshalAs(UnmanagedType.Bool)] bool wait);
+
+        [DllImport("kernel32.dll", SetLastError = true)]
+        [return: MarshalAs(UnmanagedType.Bool)]
+        public static extern bool CancelIoEx(SafeFileHandle h, IntPtr overlapped);
 
         [DllImport("hid.dll", SetLastError = true)]
         [return: MarshalAs(UnmanagedType.U1)]

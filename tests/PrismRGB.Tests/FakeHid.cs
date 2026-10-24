@@ -1,3 +1,7 @@
+// PrismRGB - contrôle RGB unifié pour Windows
+// Copyright (C) 2026 Torjant <https://github.com/Torjant/PrismRGB>
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 using System.Collections.Concurrent;
 using PrismRGB.Core.Hid;
 
@@ -58,6 +62,9 @@ public sealed class FakeHidProvider : IHidProvider
             board.Sent.Enqueue(data.ToArray());
             return true;
         }
+
+        public bool Write(ReadOnlySpan<byte> data) => SetFeature(data);
+        public int Read(byte[] buffer, int timeoutMs) => 0;
 
         public void Dispose() { }
     }

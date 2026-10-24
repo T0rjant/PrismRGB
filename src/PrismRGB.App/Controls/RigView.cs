@@ -1,3 +1,7 @@
+// PrismRGB - contrôle RGB unifié pour Windows
+// Copyright (C) 2026 Torjant <https://github.com/Torjant/PrismRGB>
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 using System.Globalization;
 using Avalonia;
 using Avalonia.Controls;
@@ -78,7 +82,14 @@ public sealed class RigView : Control
             var d = f.Device;
             if (d.Kind == DeviceKind.Dram)
             {
-                parts.Add(new Part(PartKind.Stick, $"RAM {++ramIndex}", f.Colors, 30 * s, 136 * s));
+                // Une barrette par zone (un contrôleur Kingston pilote plusieurs barrettes).
+                foreach (var z in d.Zones)
+                {
+                    if (z.LedCount <= 0) continue;
+                    int st = Math.Min(z.StartIndex, f.Colors.Length);
+                    var leds = f.Colors.AsSpan(st, Math.Min(z.LedCount, f.Colors.Length - st)).ToArray();
+                    parts.Add(new Part(PartKind.Stick, $"RAM {++ramIndex}", leds, 30 * s, 136 * s));
+                }
                 continue;
             }
             if (d.Kind == DeviceKind.Gpu)

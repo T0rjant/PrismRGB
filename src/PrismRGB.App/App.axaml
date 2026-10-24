@@ -137,6 +137,25 @@
       <Setter Property="BorderBrush" Value="White" />
     </Style>
 
+    <!-- Lien « by Torjant » -->
+    <Style Selector="Button.byline">
+      <Setter Property="Background" Value="Transparent" />
+      <Setter Property="BorderThickness" Value="0" />
+      <Setter Property="Padding" Value="4,1" />
+      <Setter Property="Cursor" Value="Hand" />
+      <Setter Property="Foreground" Value="#9C86FF" />
+    </Style>
+    <Style Selector="Button.byline TextBlock">
+      <Setter Property="Foreground" Value="#9C86FF" />
+    </Style>
+    <Style Selector="Button.byline:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+      <Setter Property="Background" Value="Transparent" />
+    </Style>
+    <Style Selector="Button.byline:pointerover TextBlock">
+      <Setter Property="Foreground" Value="#C4B5FF" />
+      <Setter Property="TextDecorations" Value="Underline" />
+    </Style>
+
     <!-- Rail de navigation -->
     <Style Selector="ListBox.nav">
       <Setter Property="Background" Value="Transparent" />

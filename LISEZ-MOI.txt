@@ -1,23 +1,30 @@
-PrismRGB - démarrage rapide (Windows 10/11)
-============================================
+PrismRGB by Torjant - démarrage rapide (Windows 10/11)
+=======================================================
 
 Rien à installer : double-clique sur PrismRGB.exe.
 (Windows peut afficher « Windows a protégé votre ordinateur » car le fichier n'est pas signé :
  clique sur « Informations complémentaires » puis « Exécuter quand même ».)
 
-1. Ferme les autres logiciels RGB (MSI Center / Mystic Light, iCUE, SignalRGB, OpenRGB...).
+1. Ferme les autres logiciels RGB (MSI Center / Mystic Light, Armoury Crate, iCUE, SignalRGB, OpenRGB...).
    Deux logiciels sur le même contrôleur = couleurs qui sautent. PrismRGB les signale dans Réglages.
 
-2. Onglet Appareils : pour chaque connecteur ARGB de la carte mère (JRAINBOW / JARGB),
+2. Onglet Appareils : pour chaque connecteur ARGB de la carte mère (JRAINBOW / JARGB / D_LED...),
    indique le nombre de LEDs branchées puis OK, et ce qui est branché (bande ou ventilateurs).
 
 3. Onglet Éclairage : choisis un profil ou un effet, règle couleurs, vitesse, sens.
    La luminosité générale et le bouton marche/arrêt sont en haut à droite.
 
-4. Onglet Matériel : liste tout ce qui a du RGB dans le PC et ce qui est déjà piloté.
-   Bouton « Enregistrer le rapport » : crée PrismRGB-rapport.txt sur le bureau.
-   C'est ce fichier qu'il faut renvoyer pour ajouter le pilote de la RAM, de la carte graphique
-   ou d'un contrôleur de ventilos.
+4. RAM RGB : installe le pilote gratuit PawnIO (bouton dans Réglages > RAM), active
+   « Contrôle du RGB de la RAM » et accepte le redémarrage en administrateur.
+
+5. Onglet Matériel : tout ce qui a du RGB dans le PC et ce qui est piloté.
+   « Enregistrer le rapport » crée PrismRGB-rapport.txt sur le bureau : à joindre à une issue GitHub
+   pour faire ajouter un appareil non reconnu.
+
+Cartes mères prises en charge : MSI, ASUS (Aura USB), ASRock (Polychrome USB), Gigabyte (RGB Fusion 2).
+RAM : Kingston FURY, G.Skill / TeamGroup / ADATA (puce ENE), Corsair Vengeance / Dominator.
 
 Options de lancement : --minimized (démarre dans la zone de notification),
                        --demo (appareils simulés, rien n'est envoyé au matériel).
+
+Projet : https://github.com/Torjant/PrismRGB  -  Licence GPL-3.0-or-later
