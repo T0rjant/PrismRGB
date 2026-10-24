@@ -561,7 +561,7 @@
               </StackPanel>
               <TextBlock Classes="muted" Text="Logiciel libre sous licence GPL-3.0-or-later : gratuit, code source ouvert, et toute version modifiée doit rester libre et publier son code. Les protocoles des contrôleurs sont issus du travail de rétro-ingénierie de la communauté open source (OpenRGB, mystic-why, SignalRGB, PawnIO)." />
               <WrapPanel>
-                <Button Classes="small accent" Content="Voir le projet sur GitHub" Command="{Binding OpenGitHubCommand}" Margin="0,0,8,8" />
+                <Button Classes="small accent" Content="Voir le projet sur GitHub" Command="{Binding OpenRepoCommand}" Margin="0,0,8,8" />
               </WrapPanel>
               <TextBlock Text="{Binding ConfigPath}" Classes="muted" FontSize="11" />
             </StackPanel>

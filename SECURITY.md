@@ -14,7 +14,7 @@
 - aucune écriture dans la mémoire de configuration (SPD) de vos barrettes : une couche de protection (`SafeSmbus`) refuse toute écriture vers les adresses 0x50-0x57, hormis la sélection de page standard JEDEC ;
 - aucune écriture en mémoire flash des contrôleurs (les réglages d'usine restent intacts après un redémarrage).
 
-**Exécutables :** chaque version publiée est compilée par GitHub Actions depuis ce dépôt, avec son empreinte SHA-256 et une attestation de provenance (`gh attestation verify PrismRGB.exe -R Torjant/PrismRGB`). L'exécutable n'est pas signé par un certificat commercial : Windows SmartScreen peut afficher un avertissement au premier lancement.
+**Exécutables :** chaque version publiée est compilée par GitHub Actions depuis ce dépôt, avec son empreinte SHA-256 et une attestation de provenance (`gh attestation verify PrismRGB.exe -R T0rjant/PrismRGB`). L'exécutable n'est pas signé par un certificat commercial : Windows SmartScreen peut afficher un avertissement au premier lancement.
 
 **Signaler une faille :** ouvrez un rapport privé via l'onglet « Security > Report a vulnerability » du dépôt GitHub. Merci de ne pas publier de détails avant correctif.
 

@@ -1,5 +1,5 @@
 // PrismRGB - contrôle RGB unifié pour Windows
-// Copyright (C) 2026 Torjant <https://github.com/Torjant/PrismRGB>
+// Copyright (C) 2026 Torjant <https://github.com/T0rjant/PrismRGB>
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 namespace PrismRGB.Core.Devices;

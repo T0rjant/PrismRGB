@@ -9,7 +9,7 @@
     <Company>Torjant</Company>
     <Product>PrismRGB</Product>
     <Copyright>Copyright (C) 2026 Torjant - GPL-3.0-or-later</Copyright>
-    <RepositoryUrl>https://github.com/Torjant/PrismRGB</RepositoryUrl>
+    <RepositoryUrl>https://github.com/T0rjant/PrismRGB</RepositoryUrl>
     <PackageLicenseExpression>GPL-3.0-or-later</PackageLicenseExpression>
   </PropertyGroup>
 </Project>

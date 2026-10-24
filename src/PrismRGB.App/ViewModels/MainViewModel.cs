@@ -1,5 +1,5 @@
 // PrismRGB - contrôle RGB unifié pour Windows
-// Copyright (C) 2026 Torjant <https://github.com/Torjant/PrismRGB>
+// Copyright (C) 2026 Torjant <https://github.com/T0rjant/PrismRGB>
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 using System.Collections.ObjectModel;
@@ -108,7 +108,7 @@ public sealed partial class MainViewModel : ObservableObject
     public bool InBackground { get; set; }
     public string Author => Core.AppInfo.Author;
     public string ByAuthor => $"by {Core.AppInfo.Author}";
-    public string GitHubUrl => Core.AppInfo.GitHubUrl;
+    public string GitHubUrl => Core.AppInfo.ProfileUrl;
 
     /// <summary>Demande à l'application de se relancer en administrateur.</summary>
     public event EventHandler? RestartElevatedRequested;
@@ -431,7 +431,10 @@ public sealed partial class MainViewModel : ObservableObject
     }
 
     [RelayCommand]
-    private void OpenGitHub() => Shell.Open(Core.AppInfo.GitHubUrl);
+    private void OpenGitHub() => Shell.Open(Core.AppInfo.ProfileUrl);
+
+    [RelayCommand]
+    private void OpenRepo() => Shell.Open(Core.AppInfo.GitHubUrl);
 
     private void RefreshStatus()
     {

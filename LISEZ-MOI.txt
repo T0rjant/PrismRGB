@@ -27,4 +27,4 @@ RAM : Kingston FURY, G.Skill / TeamGroup / ADATA (puce ENE), Corsair Vengeance /
 Options de lancement : --minimized (démarre dans la zone de notification),
                        --demo (appareils simulés, rien n'est envoyé au matériel).
 
-Projet : https://github.com/Torjant/PrismRGB  -  Licence GPL-3.0-or-later
+Projet : https://github.com/T0rjant/PrismRGB  -  Licence GPL-3.0-or-later
